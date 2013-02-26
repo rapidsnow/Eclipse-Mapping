@@ -17,6 +17,9 @@ psum[j]=sum;}
 #define SWAP(a,b) {swap=(a);(a)=(b);(b)=swap;}
 
 /*
+ Testing github
+ 
+ 
 Versions:
  v2.03 2_19_2013 WNA
  Small bug where the lightcurve detrending flag wasn't working as expected. I didn't realize
