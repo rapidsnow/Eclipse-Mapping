@@ -311,15 +311,14 @@ int main (int argc, const char * argv[]) {
     
     orb_epoch = orb_epoch - bjdrefi;
     points_per_day = (int)((24*60*60)/58.85);
-	s.orb_phase = malloc (npoints * sizeof(s.orb_phase));
+    
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    s.orb_phase = malloc (npoints * sizeof(s.orb_phase));
 	s.flux = malloc (npoints * sizeof(s.flux));
 	s.flux_err = malloc (npoints * sizeof(s.flux_err));
 	s.bin_phase = malloc(npoints * sizeof(s.bin_phase));
 	s.bin_flux = make_2d_array((int)npoints, 2);
 	s.bin_error = malloc(npoints * sizeof(s.bin_flux));
-    
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////
     init_bary = malloc (npoints * sizeof(init_bary));
 	init_flux = malloc (npoints * sizeof(init_flux));
 	init_error = malloc (npoints * sizeof(init_error));
@@ -624,8 +623,8 @@ void printerror(int status) {
 }
 void free_2d(double **array, int sizeY) {
     //Free the 2d arrays that I make with my routine below
- //   for (int i = 0; i < dimension1_max; i++) {
- //       free(x[i]);
+//    for (int i = 0; i < dimension1_max; i++) {
+//        free(x[i]);
 //    }
 //    free(x);
     for (int i = 0; i < sizeY; i++) {
@@ -907,6 +906,11 @@ void bin_data(static_inputs s, dynamic_inputs d, double phase_fix(double)) {
     double end_of_bin;
     double half_transit;
     
+    //Initialize the values... don't use calloc because it may have way too much memory for what we need.
+    s.bin_flux[0][0] = 0;
+    s.bin_phase[0] = 0;
+    s.bin_error[0] = 0;
+    
     //Start Finding Phase
     half_transit = (s.width/2)/s.orb_per;
     //End Finding Phase
@@ -958,6 +962,9 @@ void bin_data(static_inputs s, dynamic_inputs d, double phase_fix(double)) {
                 //Reset the counting variables
                 (*d.c1) = 0;
                 (*d.count)++;
+                s.bin_flux[*d.count][0] = 0;
+                s.bin_phase[*d.count] = 0;
+                s.bin_error[*d.count] = 0;
             }
             
             //Change value of end_of_bin
