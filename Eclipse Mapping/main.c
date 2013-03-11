@@ -193,22 +193,15 @@ void data_clipping(static_inputs s, dynamic_inputs d);
 void amoeba(double **p, double y[], int ndim, double ftol, double (*funk)(static_inputs, dynamic_inputs, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)), int *nfunk, static_inputs s, dynamic_inputs d, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs));
 
 int main (int argc, const char * argv[]) {
-	char filename[256], output_path[256], fname[256];
+	char filename[256], output_path[256];
 	long firstrow, firstelem, npoints, bjdrefi;
-	int status, hdutype, flux_col, err_col, anynul, nstripes, nboxes, PDC_Flag, funk_count, start_val, end_val, points_per_day;
-	double p_rot, orb_epoch, orb_per, width, nulval, o_cadence, t_cadence, scale, temp_flux, Rp, a, b, lam1, lam2, desired_days_per_set, days_per_tick, ldc1, ldc2;
+	int status, hdutype, flux_col, err_col, anynul, nstripes, nboxes, PDC_Flag, funk_count, points_per_day;
+	double p_rot, orb_epoch, orb_per, width, nulval, scale, o_cadence, t_cadence, Rp, a, b, lam1, lam2, desired_days_per_set, days_per_tick, ldc1, ldc2;
 	double *y, *init_bary, *init_flux, *init_error, **simplex;
     
 	fitsfile *fptr;
 	FILE *data;
 	FILE *in;
-	FILE *model;
-	FILE *bright;
-    FILE *hey;
-    FILE *readable_input;
-    FILE *chi_out;
-    FILE *trans_out;
-  	FILE *vis_output;
     
     static_inputs s;
     dynamic_inputs d;
@@ -255,33 +248,6 @@ int main (int argc, const char * argv[]) {
     s.e_region = ((sin(PI/2) - sin(-PI/2)) * (s.lat2 - s.lat1 - sin(s.lat2)*cos(s.lat2) + sin(s.lat1)*cos(s.lat1)))/(2 * PI);
     s.cc = (1 - s.e_region)/s.e_region;
     
-    sprintf(fname, "%s/readable_inputs.in", output_path);
-    readable_input = fopen(fname, "w");
-    if (readable_input == NULL) {
-        printf("Error: File %s not opened correctly\n", argv[1]);
-		return 1;
-    }
-    fprintf(readable_input, "Filename:                       %s\n", filename);
-    fprintf(readable_input, "Period of rotation:             %lf\n", p_rot);
-    fprintf(readable_input, "In transit binning cadence:     %lf\n", t_cadence);
-    fprintf(readable_input, "Out-of-transit binning cadence: %lf\n", o_cadence);
-    fprintf(readable_input, "Orbital epoch:                  %lf\n", orb_epoch);
-    fprintf(readable_input, "Transit width:                  %lf\n", width);
-    fprintf(readable_input, "Orbital period:                 %lf\n", orb_per);
-    fprintf(readable_input, "Impact parameter:               %lf\n", b);
-    fprintf(readable_input, "Rp/R*:                          %lf\n", Rp);
-    fprintf(readable_input, "Orbital separation:             %lf\n", a);
-    fprintf(readable_input, "Regularization for stripes:     %lf\n", lam1);
-    fprintf(readable_input, "Regularization for boxes:       %lf\n", lam2);
-    fprintf(readable_input, "Number of stripes:              %d\n", nstripes);
-    fprintf(readable_input, "Number of boxes:                %d\n", nboxes);
-    fprintf(readable_input, "PDC flag:                       %d\n", PDC_Flag);
-    fprintf(readable_input, "Desired Days per set:           %lf\n", desired_days_per_set);
-    fprintf(readable_input, "Desired Days per tick:          %lf\n", days_per_tick);
-    fprintf(readable_input, "LD Coefficient 1:               %lf\n", ldc1);
-    fprintf(readable_input, "LD Coefficient 2:               %lf\n", ldc2);
-    fclose(readable_input);
-    
     check_PDC_Flag(PDC_Flag, &err_col, &flux_col);
 	
 ////// Start fits files routines //////////////////////////////////////////////////////////////////
@@ -311,32 +277,29 @@ int main (int argc, const char * argv[]) {
     
     orb_epoch = orb_epoch - bjdrefi;
     points_per_day = (int)((24*60*60)/58.85);
-	s.orb_phase = malloc (npoints * sizeof(s.orb_phase));
-	s.flux = malloc (npoints * sizeof(s.flux));
-	s.flux_err = malloc (npoints * sizeof(s.flux_err));
-	s.bin_phase = malloc(npoints * sizeof(s.bin_phase));
-	s.bin_flux = make_2d_array((int)npoints, 2);
-	s.bin_error = malloc(npoints * sizeof(s.bin_flux));
-    
     
     /////////////////////////////////////////////////////////////////////////////////////////////
-    init_bary = malloc (npoints * sizeof(init_bary));
-	init_flux = malloc (npoints * sizeof(init_flux));
-	init_error = malloc (npoints * sizeof(init_error));
-    d.c1 = malloc(sizeof(d.c1));
-    d.count = malloc(sizeof(d.count));
-    d.firstelem = malloc(sizeof(d.firstelem));
-    d.nelements = malloc(sizeof(d.nelements));
-    d.EOW = malloc(sizeof(d.EOW));
-    simplex = make_2d_array(s.nsb + 1, s.nsb);
-    y = malloc((s.nsb + 1) * sizeof(y));
-    s.chi = malloc(sizeof(s.chi));
-    sprintf(fname, "%s/chi.out", output_path);
-    chi_out = fopen(fname, "w");
+	if((s.orb_phase = malloc(npoints * sizeof(s.orb_phase))) == NULL) return 5;
+	if((s.flux      = malloc(npoints * sizeof(s.flux)))      == NULL) return 5;
+	if((s.flux_err  = malloc(npoints * sizeof(s.flux_err)))  == NULL) return 5;
+	if((s.bin_phase = malloc(npoints * sizeof(s.bin_phase))) == NULL) return 5;
+	s.bin_flux      = make_2d_array((int)npoints, 2);
+	if((s.bin_error = malloc(npoints * sizeof(s.bin_error))) == NULL) return 5;
+    if((init_bary   = malloc(npoints * sizeof(init_bary)))   == NULL) return 5;
+	if((init_flux   = malloc(npoints * sizeof(init_flux)))   == NULL) return 5;
+	if((init_error  = malloc(npoints * sizeof(init_error)))  == NULL) return 5;
+    if((d.c1        = malloc(sizeof(d.c1)))                  == NULL) return 5;
+    if((d.count     = malloc(sizeof(d.count)))               == NULL) return 5;
+    if((d.firstelem = malloc(sizeof(d.firstelem)))           == NULL) return 5;
+    if((d.nelements = malloc(sizeof(d.nelements)))           == NULL) return 5;
+    if((d.EOW       = malloc(sizeof(d.EOW)))                 == NULL) return 5;
+    simplex         = make_2d_array(s.nsb + 1, s.nsb);
+    if((y           = malloc((s.nsb + 1) * sizeof(y)))       == NULL) return 5;
+    if((s.chi       = malloc(sizeof(s.chi)))                 == NULL) return 5;
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     *d.nelements = npoints;
-    d.file_count = 0;
+    d.file_count = *d.count = 0;
     s.npoints = npoints;
     s.desired_days_per_set = desired_days_per_set/s.orb_per;
     s.days_per_tick = days_per_tick/s.orb_per;
@@ -385,37 +348,27 @@ int main (int argc, const char * argv[]) {
     }
     
 ///////////////////////////////////////////////////////////////////////////
-    
+
 ////////// Start Binning //////////////////////////////////////////////////////////////////////////
     //Open the binned lightcurve output file
-    sprintf(fname, "%s/binned.out", output_path);
-    data = fopen(fname, "w");
-    
     *d.nelements = npoints;
     bin_data(s, d, phase_fix);
-    
+
     // Normalize highest flux value to 1 //
     s.normFactor = getNormVal(s.bin_flux, *d.count);
+
     for (int i = 0; i <= *d.count; i++) {
         s.bin_flux[i][0] = s.bin_flux[i][0]/s.normFactor;
         s.bin_error[i] = (s.bin_error[i]/s.normFactor);
     }
-    
-    //Print data to file
-    for (int i = 0; i <= *d.count; i++) {
-        if (argc == 4) { //Lightcurve detrending flag
-            fprintf(data, "%lf %lf %lf\n", s.bin_phase[i] * s.orb_per, s.bin_flux[i][0] * s.normFactor, s.bin_error[i] * s.normFactor);
-        } else {
-            fprintf(data, "%lf %lf %lf\n", s.bin_phase[i], s.bin_flux[i][0], s.bin_error[i]);
-        }
-    }
-    fclose(data);
+
 ////////// End Binning ////////////////////////////////////////////////////////////////////////////
 
 ////////// Start visibilities /////////////////////////////////////////////////////////////////////
     s.visibilities = make_2d_array(*d.count + 1, s.nsb);
     d.ld_flag = 1;
     assign_visibilities(s, d, box_vis_find, stripe_vis_find, eclipse_path_vis);
+    
     for (int i = 0; i < *d.count; i++) {
         for (int j = 0; j < s.nstripes; j++) {
             if (s.visibilities[i][j] != s.visibilities[i][j]) {
@@ -423,65 +376,9 @@ int main (int argc, const char * argv[]) {
             }
         }
     }
+
     
 ////////// End visibilities ///////////////////////////////////////////////////////////////////////
-    
-    
-////////// Begin visibilities Outputs /////////////////////////////////////////////////////////////
-    sprintf(fname, "%s/Vis_Plots/sum_bvals.out", output_path);
-    vis_output = fopen(fname, "w");
-    for (int j = 0; j < *d.count; j++) {
-        double sum = 0;
-        for (int i = 0; i < s.nboxes; i++) {
-            sum += s.visibilities[j][i];
-        }
-        fprintf(vis_output, "%lf %lf\n", s.bin_phase[j], sum);
-    }
-    fclose(vis_output);
-    
-    sprintf(fname, "%s/Vis_Plots/sum_zvals.out", output_path);
-    vis_output = fopen(fname, "w");
-    for (int j = 0; j < *d.count; j++) {
-        double sum = 0;
-        for (int i = s.nboxes; i < s.nsb; i++) {
-            sum += s.visibilities[j][i];
-        }
-        fprintf(vis_output, "%lf %lf\n", s.bin_phase[j], sum);
-    }
-    fclose(vis_output);
-    
-    sprintf(fname, "%s/Vis_Plots/sum_all.out", output_path);
-    vis_output = fopen(fname, "w");
-    for (int j = 0; j < *d.count; j++) {
-        double sum = 0;
-        for (int i = s.nboxes; i < s.nsb; i++) {
-            sum += s.visibilities[j][i];
-        }
-        for (int i = 0; i < s.nboxes; i++) {
-            sum -= s.visibilities[j][i];
-        }
-        fprintf(vis_output, "%lf %lf\n", s.bin_phase[j], sum);
-    }
-    fclose(vis_output);
-    
-    for (int i = 0; i < s.nboxes; i++) {
-        sprintf(fname, "%s/Vis_Plots/b%d.out", output_path, i);
-        vis_output = fopen(fname, "w");
-        for (int j = 0; j < *d.count; j++) {
-            fprintf(vis_output, "%lf %lf\n", s.bin_phase[j], s.visibilities[j][i]);
-        }
-        fclose(vis_output);
-    }
-    for (int i = s.nboxes; i < s.nsb; i++) {
-        sprintf(fname, "%s/Vis_Plots/z%d.out", output_path, i - nboxes);
-        vis_output = fopen(fname, "w");
-        for (int j = 0; j < *d.count; j++) {
-            fprintf(vis_output, "%lf %lf\n", s.bin_phase[j], s.visibilities[j][i]);
-        }
-        fclose(vis_output);
-    }
-////////// End visibilities Outputs ///////////////////////////////////////////////////////////////
-    
     //Set up array boundaries
     *d.firstelem = 0;
     *d.EOW = s.bin_phase[0] + s.desired_days_per_set;
@@ -506,15 +403,6 @@ int main (int argc, const char * argv[]) {
             *d.nelements = *d.count - *d.firstelem;
         }
         nn++;
-        //Print the unbinned lightcurve to an easily plottable format
-        sprintf(fname, "%s/ub_%d.out", output_path, d.file_count);
-        hey = fopen(fname, "w");
-        for (int i = *d.firstelem; i < *d.nelements + *d.firstelem; i++) {
-            if (s.flux[i] != 0) {
-                fprintf(hey, "%lf %lf\n", s.orb_phase[i], s.flux[i]/s.normFactor);
-            }
-        }
-        fclose(hey);
         
         //Assign useful variables to structs
         d.ld_flag = 1;
@@ -533,7 +421,6 @@ int main (int argc, const char * argv[]) {
                 if (i == j + 1) {
                     simplex[i][j] += scale;
                 }
-                
             }
         }
         for (int j = 0; j < s.nsb + 1; j++) {
@@ -541,53 +428,10 @@ int main (int argc, const char * argv[]) {
             y[j] = chi_squared(s, d, calculate_model_flux, calculate_S_vals);
         }
 
-        amoeba(simplex, y, s.nsb, .00000000001, chi_squared, &funk_count, s, d, calculate_model_flux, calculate_S_vals);
-        printf("Done with Amoeba: %d\n", nn);
+        //amoeba(simplex, y, s.nsb, .00000000001, chi_squared, &funk_count, s, d, calculate_model_flux, calculate_S_vals);
+        //printf("Done with Amoeba: %d\n", nn);
         
 ////////// End Amoeba /////////////////////////////////////////////////////////////////////////////
-        
-        
-////////// Start Light Curve Outputs //////////////////////////////////////////////////////////////
-        if(argc == 4) {
-            sprintf(fname, "%s/model_%03d.out", output_path, d.file_count);
-        } else {
-            sprintf(fname, "%s/model_%d.out", output_path, d.file_count);
-        }
-        model = fopen(fname, "w");
-        for (int i = *d.firstelem; i < *d.nelements + *d.firstelem; i++) {
-            temp_flux = (*calculate_model_flux)(s, calculate_S_vals, i);
-            if (argc == 4) { //Lightcurve detrending flag
-                fprintf(model, "%lf %lf %lf\n", s.bin_phase[i] * orb_per + orb_epoch + bjdrefi, temp_flux * s.normFactor, s.bin_error[i] * s.normFactor);
-            } else {
-                fprintf(model, "%lf %lf %lf\n", s.bin_phase[i], temp_flux, s.bin_error[i]);
-            }
-        }
-        fclose(model);
-        // B-Value recovery from Z-Values
-        memcpy(s.brights, (*calculate_S_vals)(s), s.nsb * sizeof(s.brights));
-        
-        sprintf(fname, "%s/brights_%d.out", output_path, d.file_count);
-        bright = fopen(fname, "w");
-        for (int i = 0; i < s.nsb; i++) {
-            fprintf(bright, "%lf\n", s.brights[i]);
-        }
-        fclose(bright);
-////////// End Light Curve Outputs ////////////////////////////////////////////////////////////////
-        
-////////// Start Transit Range Outputs ////////////////////////////////////////////////////////////
-        sprintf(fname, "%s/trans_%d.out", output_path, d.file_count);
-        trans_out = fopen(fname, "w");
-        for (int ii = 1 + *d.firstelem; ii < *d.nelements + *d.firstelem - 1; ii++) {
-            if (s.bin_flux[ii][1] && !s.bin_flux[ii-1][1]) {
-                start_val = ii;
-            }
-            if (s.bin_flux[ii][1] && !s.bin_flux[ii+1][1]){
-                end_val = ii;
-                fprintf(trans_out, "%d,%d\n", start_val + 1, end_val + 1);
-            }
-        }
-        fclose(trans_out);
-////////// End Transit Range Outputs ///////////////////////////////////////////////////////////////
         
         d.file_count++;
         funk_count = 0;
@@ -596,20 +440,23 @@ int main (int argc, const char * argv[]) {
         reset_array_counters(s, d);
     }
 
-    fclose(chi_out);
-    free(s.orb_phase);
-    free(s.flux);
-    free(s.flux_err);
     free(init_bary);
     free(init_flux);
     free(init_error);
+    free(d.c1);
+    free(d.count);
+    free(d.firstelem);
+    free(d.nelements);
+    free(d.EOW);
+    free_2d(simplex, s.nsb);
     free(y);
+    free(s.chi);
+    free(s.orb_phase);
+    free(s.flux);
+    free(s.flux_err);
     free(s.bin_phase);
     free_2d(s.bin_flux, 2);
     free(s.bin_error);
-    free_2d(s.visibilities, *d.count + 1);
-    free_2d(simplex, s.nsb);
-    
     return 0;
 }
 
@@ -624,8 +471,8 @@ void printerror(int status) {
 }
 void free_2d(double **array, int sizeY) {
     //Free the 2d arrays that I make with my routine below
- //   for (int i = 0; i < dimension1_max; i++) {
- //       free(x[i]);
+//    for (int i = 0; i < dimension1_max; i++) {
+//        free(x[i]);
 //    }
 //    free(x);
     for (int i = 0; i < sizeY; i++) {
@@ -656,13 +503,13 @@ void check_PDC_Flag(int PDC_Flag, int *err_col, int *flux_col) {
 	}
 }
 void reset_array_counters(static_inputs s, dynamic_inputs d) {
-    for (int i = *d.firstelem; i < s.npoints; i++) {
+    for (int i = *d.firstelem; i < *d.count; i++) {
         if (s.bin_phase[i] >= s.bin_phase[*d.firstelem] + s.days_per_tick) {
             *d.firstelem = i;
             break;
         }
     }
-    for (int i = *d.firstelem; i < s.npoints; i++) {
+    for (int i = *d.firstelem; i < *d.count; i++) {
         if (s.bin_phase[i] >= *d.EOW + s.days_per_tick) {
             *d.EOW = s.bin_phase[i];
             *d.nelements = i - *d.firstelem;
@@ -760,7 +607,7 @@ double getNormVal (double **bin_flux, long npoints) {
     /* Get a flux normalization value for the
      entire dataset, not just each individual run */
     double normFactor = bin_flux[0][0];
-    for (int i = 0; i <= npoints; i++) {
+    for (int i = 0; i < npoints; i++) {
         if (bin_flux[i][0] > normFactor) {
             normFactor = bin_flux[i][0];
         }
@@ -907,6 +754,11 @@ void bin_data(static_inputs s, dynamic_inputs d, double phase_fix(double)) {
     double end_of_bin;
     double half_transit;
     
+    //Initialize first values to 0... Don't use calloc because I have to overallocate by a lot to ensure that we can do no binning
+    s.bin_flux[0][0] = 0;
+    s.bin_phase[0] = 0;
+    s.bin_error[0] = 0;
+    
     //Start Finding Phase
     half_transit = (s.width/2)/s.orb_per;
     //End Finding Phase
@@ -958,6 +810,9 @@ void bin_data(static_inputs s, dynamic_inputs d, double phase_fix(double)) {
                 //Reset the counting variables
                 (*d.c1) = 0;
                 (*d.count)++;
+                s.bin_flux[*d.count][0] = 0;
+                s.bin_phase[*d.count] = 0;
+                s.bin_error[*d.count] = 0;
             }
             
             //Change value of end_of_bin
