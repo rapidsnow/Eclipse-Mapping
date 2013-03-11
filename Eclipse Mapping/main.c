@@ -11,7 +11,7 @@
 #define FREE_ARG char*
 #define NMAX 500000
 #define GET_PSUM \
-for (j=1;j<=ndim;j++) {\
+for (j=0;j<ndim;j++) {\
 for (sum=0.0,i=0;i<mpts;i++) sum += p[i][j]; \
 psum[j]=sum;}
 #define SWAP(a,b) {swap=(a);(a)=(b);(b)=swap;}
@@ -652,78 +652,6 @@ void data_clipping(static_inputs s, dynamic_inputs d) {
 	}
     printf("%d %d %d\n", d.start, d.stop, *d.c1);
 }
-void amoeba(double **p, double y[], int ndim, double ftol, double (*funk)(static_inputs, dynamic_inputs, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)), int *nfunk, static_inputs s, dynamic_inputs d, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)) {
-	double amotry(double **p, double y[], double psum[], int ndim, double (*funk)(static_inputs, dynamic_inputs, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)), int ihi, double fac, static_inputs s, dynamic_inputs d, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs));
-	int i, ihi, ilo, inhi, j, mpts = ndim + 1;
-	double rtol, sum, swap, ysave, ytry, *psum;
-	
-    //use_p and use_y allow us to use the numerical recipes indexing scheme (start at 1 instead of 0)
-    
-    psum = malloc(ndim * sizeof(psum));
-	*nfunk = 0;
-	GET_PSUM
-	for (;;) {
-        //Testing the current max and min of each set of points
-		ilo = 1;
-		ihi = y[0] > y[1] ? (inhi = 1, 0) : (inhi = 0, 1);
-		for (i = 0; i < mpts; i++) {
-			if (y[i] <= y[ilo]) {
-				ilo = i;
-			}
-			if (y[i] > y[ihi]) {
-				inhi = ihi;
-				ihi = i;
-			} else if (y[i] > y[inhi] && i != ihi) {
-				inhi = i;
-			}
-		}
-        //Testing the convergence and breaking out if need be
-		rtol = 2.0 * fabs(y[ihi] - y[ilo])/(fabs(y[ihi]) + fabs(y[ilo]));
-		if (rtol < ftol) {
-			SWAP(y[0], y[ilo])
-			//SWITCHED p[ilo] TO use_p[ilo]
-			for (i = 0; i < ndim; i++)  SWAP(p[0][i], p[ilo][i])
-				break;
-		}
-        //Step limit (so that it doesn't run away)
-		if (*nfunk >= NMAX) {
-			nrerror("NMAX exceeded");
-		}
-		*nfunk += 2;
-        //Modify whichever point
-        
-        //Reflection
-		ytry = amotry(p, y, psum, ndim, funk, ihi, -1.0, s, d, calculate_model_flux, calculate_S_vals);
-		if (ytry <= y[ilo]) {
-            
-            //Expansion
-			ytry = amotry(p, y, psum, ndim, funk, ihi, 2.0, s, d, calculate_model_flux, calculate_S_vals);
-		}	else if (ytry >= y[inhi]) {
-			ysave = y[ihi];
-            
-            //One point contraction (shouldn't need 0 limiting)
-			ytry = amotry(p, y, psum, ndim, funk, ihi, 0.5, s, d, calculate_model_flux, calculate_S_vals);
-			if (ytry >= ysave) {
-				for (i = 0; i < mpts; i++) {
-					if (i != ilo) {
-                        
-                        //Multi Contraction (shouldn't need 0 limiting)
-						for (j = 0; j < ndim; j++) {
-							p[i][j] = psum[j] = 0.5 * (p[i][j] + p[ilo][j]);
-						}
-                        memcpy(s.brights, psum, s.nsb * sizeof(s.brights));
-						y[i] = (*funk)(s, d, calculate_model_flux, calculate_S_vals);
-					}
-				}
-				*nfunk += ndim;
-				GET_PSUM
-			}
-		} else {
-			(*nfunk)--;
-		}
-	}
-	free(psum);
-}
 void bin_data(static_inputs s, dynamic_inputs d, double phase_fix(double)) {
     /* This is only called once, but this way we can
      just trust that the data is binned. If we want
@@ -1212,6 +1140,78 @@ double chi_squared(static_inputs s, dynamic_inputs d, double (*calculate_model_f
 		}
 	}
 	return *s.chi;
+}
+void amoeba(double **p, double y[], int ndim, double ftol, double (*funk)(static_inputs, dynamic_inputs, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)), int *nfunk, static_inputs s, dynamic_inputs d, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)) {
+	double amotry(double **p, double y[], double psum[], int ndim, double (*funk)(static_inputs, dynamic_inputs, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)), int ihi, double fac, static_inputs s, dynamic_inputs d, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs));
+	int i, ihi, ilo, inhi, j, mpts = ndim + 1;
+	double rtol, sum, swap, ysave, ytry, *psum;
+	
+    //use_p and use_y allow us to use the numerical recipes indexing scheme (start at 1 instead of 0)
+    
+    psum = malloc(ndim * sizeof(psum));
+	*nfunk = 0;
+	GET_PSUM
+	for (;;) {
+        //Testing the current max and min of each set of points
+		ilo = 1;
+		ihi = y[0] > y[1] ? (inhi = 1, 0) : (inhi = 0, 1);
+		for (i = 0; i < mpts; i++) {
+			if (y[i] <= y[ilo]) {
+				ilo = i;
+			}
+			if (y[i] > y[ihi]) {
+				inhi = ihi;
+				ihi = i;
+			} else if (y[i] > y[inhi] && i != ihi) {
+				inhi = i;
+			}
+		}
+        //Testing the convergence and breaking out if need be
+		rtol = 2.0 * fabs(y[ihi] - y[ilo])/(fabs(y[ihi]) + fabs(y[ilo]));
+		if (rtol < ftol) {
+			SWAP(y[0], y[ilo])
+			//SWITCHED p[ilo] TO use_p[ilo]
+			for (i = 0; i < ndim; i++)  SWAP(p[0][i], p[ilo][i])
+				break;
+		}
+        //Step limit (so that it doesn't run away)
+		if (*nfunk >= NMAX) {
+			nrerror("NMAX exceeded");
+		}
+		*nfunk += 2;
+        //Modify whichever point
+        
+        //Reflection
+		ytry = amotry(p, y, psum, ndim, funk, ihi, -1.0, s, d, calculate_model_flux, calculate_S_vals);
+		if (ytry <= y[ilo]) {
+            
+            //Expansion
+			ytry = amotry(p, y, psum, ndim, funk, ihi, 2.0, s, d, calculate_model_flux, calculate_S_vals);
+		}	else if (ytry >= y[inhi]) {
+			ysave = y[ihi];
+            
+            //One point contraction (shouldn't need 0 limiting)
+			ytry = amotry(p, y, psum, ndim, funk, ihi, 0.5, s, d, calculate_model_flux, calculate_S_vals);
+			if (ytry >= ysave) {
+				for (i = 0; i < mpts; i++) {
+					if (i != ilo) {
+                        
+                        //Multi Contraction (shouldn't need 0 limiting)
+						for (j = 0; j < ndim; j++) {
+							p[i][j] = psum[j] = 0.5 * (p[i][j] + p[ilo][j]);
+						}
+                        memcpy(s.brights, psum, s.nsb * sizeof(s.brights));
+						y[i] = (*funk)(s, d, calculate_model_flux, calculate_S_vals);
+					}
+				}
+				*nfunk += ndim;
+				GET_PSUM
+			}
+		} else {
+			(*nfunk)--;
+		}
+	}
+	free(psum);
 }
 double amotry(double **p, double y[], double psum[], int ndim, double (*funk)(static_inputs, dynamic_inputs, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)), int ihi, double fac, static_inputs s, dynamic_inputs d, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)) {
 	int j;
