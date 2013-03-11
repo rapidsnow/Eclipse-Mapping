@@ -12,7 +12,7 @@
 #define NMAX 500000
 #define GET_PSUM \
 for (j=1;j<=ndim;j++) {\
-for (sum=0.0,i=1;i<=mpts;i++) sum += use_p[i][j]; \
+for (sum=0.0,i=0;i<mpts;i++) sum += p[i][j]; \
 psum[j]=sum;}
 #define SWAP(a,b) {swap=(a);(a)=(b);(b)=swap;}
 
@@ -174,7 +174,6 @@ void reset_array_counters(static_inputs s, dynamic_inputs d);
 void reset_arrays(static_inputs s, double *y, double **simplex, long nelements);
 double calculate_model_flux(static_inputs s, double*(calculate_S_vals(static_inputs)), int timestep);
 double *calculate_S_vals(static_inputs s);
-double *vector(long nl, long nh);
 double **make_2d_array(int sizeY, int sizeX);
 const char *get_filename_ext(const char *filename);
 double getNormVal (double **bin_flux, long npoints);
@@ -639,10 +638,6 @@ void nrerror(char error_text[]) {
 	fprintf(stderr,"...now exiting to system...\n");
 	exit(1);
 }
-void free_vector(double *v, long nl, long nh) {
-    //Free NR vectors
-	free((FREE_ARG) (v+nl-NR_END));
-}
 void check_PDC_Flag(int PDC_Flag, int *err_col, int *flux_col) {
     /* Check the PDC Flag to see which datatype to use
       If PDC_Flag = 1, use PDCSAP data otherwise SAP */
@@ -732,14 +727,6 @@ double *calculate_S_vals(static_inputs s) {
     }
     return brights;
 }
-double *vector(long nl, long nh) {
-    //NR type
-	double *v;
-	
-	v=(double *)malloc((size_t) ((nh - nl + 1 + NR_END) * sizeof(double)));
-	if (!v) nrerror("allocation failure in vector()");
-	return v - nl + NR_END;
-}
 double **make_2d_array(int sizeY, int sizeX) {
     double **arr2d;
     
@@ -823,38 +810,31 @@ void amoeba(double **p, double y[], int ndim, double ftol, double (*funk)(static
 	double rtol, sum, swap, ysave, ytry, *psum;
 	
     //use_p and use_y allow us to use the numerical recipes indexing scheme (start at 1 instead of 0)
-	double **use_p;
-	use_p = malloc( (ndim+1) * sizeof(*use_p));
-	for (int k = 0; k <= ndim + 1; k++) {
-		use_p[k] = p[k] - 1;
-	}
-	use_p = use_p - 1;
-	double *use_y = y - 1;
-	
-	psum = vector(1, ndim);
+    
+    psum = malloc(ndim * sizeof(psum));
 	*nfunk = 0;
 	GET_PSUM
 	for (;;) {
         //Testing the current max and min of each set of points
 		ilo = 1;
-		ihi = use_y[1] > use_y[2] ? (inhi = 2, 1) : (inhi = 1, 2);
-		for (i = 1; i <= mpts; i++) {
-			if (use_y[i] <= use_y[ilo]) {
+		ihi = y[0] > y[1] ? (inhi = 1, 0) : (inhi = 0, 1);
+		for (i = 0; i < mpts; i++) {
+			if (y[i] <= y[ilo]) {
 				ilo = i;
 			}
-			if (use_y[i] > use_y[ihi]) {
+			if (y[i] > y[ihi]) {
 				inhi = ihi;
 				ihi = i;
-			} else if (use_y[i] > use_y[inhi] && i != ihi) {
+			} else if (y[i] > y[inhi] && i != ihi) {
 				inhi = i;
 			}
 		}
         //Testing the convergence and breaking out if need be
-		rtol = 2.0 * fabs(use_y[ihi] - use_y[ilo])/(fabs(use_y[ihi]) + fabs(use_y[ilo]));
+		rtol = 2.0 * fabs(y[ihi] - y[ilo])/(fabs(y[ihi]) + fabs(y[ilo]));
 		if (rtol < ftol) {
-			SWAP(use_y[1], use_y[ilo])
+			SWAP(y[0], y[ilo])
 			//SWITCHED p[ilo] TO use_p[ilo]
-			for (i = 1; i <= ndim; i++)  SWAP(use_p[1][i], use_p[ilo][i])
+			for (i = 0; i < ndim; i++)  SWAP(p[0][i], p[ilo][i])
 				break;
 		}
         //Step limit (so that it doesn't run away)
@@ -865,26 +845,26 @@ void amoeba(double **p, double y[], int ndim, double ftol, double (*funk)(static
         //Modify whichever point
         
         //Reflection
-		ytry = amotry(use_p, use_y, psum, ndim, funk, ihi, -1.0, s, d, calculate_model_flux, calculate_S_vals);
-		if (ytry <= use_y[ilo]) {
+		ytry = amotry(p, y, psum, ndim, funk, ihi, -1.0, s, d, calculate_model_flux, calculate_S_vals);
+		if (ytry <= y[ilo]) {
             
             //Expansion
-			ytry = amotry(use_p, use_y, psum, ndim, funk, ihi, 2.0, s, d, calculate_model_flux, calculate_S_vals);
-		}	else if (ytry >= use_y[inhi]) {
-			ysave = use_y[ihi];
+			ytry = amotry(p, y, psum, ndim, funk, ihi, 2.0, s, d, calculate_model_flux, calculate_S_vals);
+		}	else if (ytry >= y[inhi]) {
+			ysave = y[ihi];
             
             //One point contraction (shouldn't need 0 limiting)
-			ytry = amotry(use_p, use_y, psum, ndim, funk, ihi, 0.5, s, d, calculate_model_flux, calculate_S_vals);
+			ytry = amotry(p, y, psum, ndim, funk, ihi, 0.5, s, d, calculate_model_flux, calculate_S_vals);
 			if (ytry >= ysave) {
-				for (i = 1; i <= mpts; i++) {
+				for (i = 0; i < mpts; i++) {
 					if (i != ilo) {
                         
                         //Multi Contraction (shouldn't need 0 limiting)
-						for (j = 1; j <= ndim; j++) {
-							use_p[i][j] = psum[j] = 0.5 * (use_p[i][j] + use_p[ilo][j]);
+						for (j = 0; j < ndim; j++) {
+							p[i][j] = psum[j] = 0.5 * (p[i][j] + p[ilo][j]);
 						}
-                        memcpy(s.brights, psum + 1, s.nsb * sizeof(s.brights));
-						use_y[i] = (*funk)(s, d, calculate_model_flux, calculate_S_vals);
+                        memcpy(s.brights, psum, s.nsb * sizeof(s.brights));
+						y[i] = (*funk)(s, d, calculate_model_flux, calculate_S_vals);
 					}
 				}
 				*nfunk += ndim;
@@ -894,7 +874,7 @@ void amoeba(double **p, double y[], int ndim, double ftol, double (*funk)(static
 			(*nfunk)--;
 		}
 	}
-	free_vector(psum, 1, ndim);
+	free(psum);
 }
 void bin_data(static_inputs s, dynamic_inputs d, double phase_fix(double)) {
     /* This is only called once, but this way we can
@@ -1389,21 +1369,22 @@ double amotry(double **p, double y[], double psum[], int ndim, double (*funk)(st
 	int j;
 	double fac1, fac2, ytry, *ptry;
 	
-	ptry = vector(1, ndim);
+	ptry = malloc(ndim * sizeof(ptry));
 	fac1 = (1.0 - fac)/ndim;
 	fac2 = fac1 - fac;
-	for (j = 1; j <= ndim; j++) {
+	for (j = 0; j < ndim; j++) {
 		ptry[j] = psum[j] * fac1 - p[ihi][j] * fac2;
 	}
-    memcpy(s.brights, ptry + 1, s.nsb * sizeof(s.brights));
+    memcpy(s.brights, ptry, s.nsb * sizeof(s.brights));
 	ytry = (*funk)(s, d, calculate_model_flux, calculate_S_vals);
 	if (ytry < y[ihi]) {
 		y[ihi] = ytry;
-		for (j = 1; j <= ndim; j++) {
+		for (j = 0; j < ndim; j++) {
 			psum[j] += ptry[j] - p[ihi][j];
 			p[ihi][j] = ptry[j];
 		}
 	}
-	free_vector(ptry, 1, ndim);
+	free(ptry);
 	return ytry;
 }
+
