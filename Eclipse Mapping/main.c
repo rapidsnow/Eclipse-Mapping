@@ -313,26 +313,26 @@ int main (int argc, const char * argv[]) {
     points_per_day = (int)((24*60*60)/58.85);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
-    s.orb_phase = malloc (npoints * sizeof(s.orb_phase));
-	s.flux = malloc (npoints * sizeof(s.flux));
-	s.flux_err = malloc (npoints * sizeof(s.flux_err));
-	s.bin_phase = malloc(npoints * sizeof(s.bin_phase));
-	s.bin_flux = make_2d_array((int)npoints, 2);
-	s.bin_error = malloc(npoints * sizeof(s.bin_flux));
-    init_bary = malloc (npoints * sizeof(init_bary));
-	init_flux = malloc (npoints * sizeof(init_flux));
-	init_error = malloc (npoints * sizeof(init_error));
-    d.c1 = malloc(sizeof(d.c1));
-    d.count = malloc(sizeof(d.count));
-    d.firstelem = malloc(sizeof(d.firstelem));
-    d.nelements = malloc(sizeof(d.nelements));
-    d.EOW = malloc(sizeof(d.EOW));
-    simplex = make_2d_array(s.nsb + 1, s.nsb);
-    y = malloc((s.nsb + 1) * sizeof(y));
-    s.chi = malloc(sizeof(s.chi));
+	if((s.orb_phase = malloc(npoints * sizeof(s.orb_phase))) == NULL) return 5;
+	if((s.flux      = malloc(npoints * sizeof(s.flux)))      == NULL) return 5;
+	if((s.flux_err  = malloc(npoints * sizeof(s.flux_err)))  == NULL) return 5;
+	if((s.bin_phase = malloc(npoints * sizeof(s.bin_phase))) == NULL) return 5;
+	s.bin_flux      = make_2d_array((int)npoints, 2);
+	if((s.bin_error = malloc(npoints * sizeof(s.bin_error))) == NULL) return 5;
+    if((init_bary   = malloc(npoints * sizeof(init_bary)))   == NULL) return 5;
+	if((init_flux   = malloc(npoints * sizeof(init_flux)))   == NULL) return 5;
+	if((init_error  = malloc(npoints * sizeof(init_error)))  == NULL) return 5;
+    if((d.c1        = malloc(sizeof(d.c1)))                  == NULL) return 5;
+    if((d.count     = malloc(sizeof(d.count)))               == NULL) return 5;
+    if((d.firstelem = malloc(sizeof(d.firstelem)))           == NULL) return 5;
+    if((d.nelements = malloc(sizeof(d.nelements)))           == NULL) return 5;
+    if((d.EOW       = malloc(sizeof(d.EOW)))                 == NULL) return 5;
+    simplex         = make_2d_array(s.nsb + 1, s.nsb);
+    if((y           = malloc((s.nsb + 1) * sizeof(y)))       == NULL) return 5;
+    if((s.chi       = malloc(sizeof(s.chi)))                 == NULL) return 5;
+    /////////////////////////////////////////////////////////////////////////////////////////////
     sprintf(fname, "%s/chi.out", output_path);
     chi_out = fopen(fname, "w");
-    /////////////////////////////////////////////////////////////////////////////////////////////
     
     *d.nelements = npoints;
     d.file_count = 0;
