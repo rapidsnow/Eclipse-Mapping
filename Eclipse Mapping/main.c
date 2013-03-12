@@ -11,20 +11,24 @@
 #define FREE_ARG char*
 #define NMAX 500000
 #define GET_PSUM \
-for (j=1;j<=ndim;j++) {\
+for (j=0;j<ndim;j++) {\
 for (sum=0.0,i=0;i<mpts;i++) sum += p[i][j]; \
 psum[j]=sum;}
 #define SWAP(a,b) {swap=(a);(a)=(b);(b)=swap;}
 
 /*
 Versions:
+ v2.1 3_11_2013 WNA
+ Fixed a lot of memory issues that valgrind was reporting. It still has some leaks, but a lot
+ less. There are no more explicit errors when you run valgrind on the code either.
+*/
+
+/*
  v2.03 2_19_2013 WNA
  Small bug where the lightcurve detrending flag wasn't working as expected. I didn't realize
  that argv elements are always strings, and so I was trying to use a simple Boolean comparison
  in an inappropriate place.
-*/
-
-/*
+ 
  v2.02 2_14_2013 WNA
  Lightcurve detrending is now an option at the start. You can do this by placing a 1 in the
  argument vector. This only affects outputs of files right now, not other parameters. You
