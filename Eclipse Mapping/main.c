@@ -211,7 +211,7 @@ int main (int argc, const char * argv[]) {
     FILE *readable_input;
     FILE *chi_out;
     FILE *trans_out;
-  	FILE *vis_output;
+  	//FILE *vis_output;
     
     static_inputs s;
     dynamic_inputs d;
@@ -429,7 +429,7 @@ int main (int argc, const char * argv[]) {
 ////////// End visibilities ///////////////////////////////////////////////////////////////////////
     
     
-////////// Begin visibilities Outputs /////////////////////////////////////////////////////////////
+/* ////////// Begin visibilities Outputs /////////////////////////////////////////////////////////////
     sprintf(fname, "%s/Vis_Plots/sum_bvals.out", output_path);
     vis_output = fopen(fname, "w");
     for (int j = 0; j < *d.count; j++) {
@@ -482,7 +482,7 @@ int main (int argc, const char * argv[]) {
         }
         fclose(vis_output);
     }
-////////// End visibilities Outputs ///////////////////////////////////////////////////////////////
+////////// End visibilities Outputs /////////////////////////////////////////////////////////////// */
     
     //Set up array boundaries
     *d.firstelem = 0;
