@@ -171,7 +171,7 @@ typedef struct {
 
 //====== Utility Functions ============================================================================================
 void printerror(int status);
-void free_2d(double **array, int sizeY);
+void free_2d(double **array);
 void nrerror(char error_text[]);
 void check_PDC_Flag(int PDC_Flag, int *err_col, int *flux_col);
 void reset_array_counters(static_inputs s, dynamic_inputs d);
@@ -200,7 +200,7 @@ int main (int argc, const char * argv[]) {
 	long firstrow, firstelem, npoints, bjdrefi;
 	int status, hdutype, flux_col, err_col, anynul, nstripes, nboxes, PDC_Flag, funk_count, start_val, end_val, points_per_day;
 	double p_rot, orb_epoch, orb_per, width, nulval, o_cadence, t_cadence, scale, temp_flux, Rp, a, b, lam1, lam2, desired_days_per_set, days_per_tick, ldc1, ldc2;
-	double *y, *init_bary, *init_flux, *init_error, **simplex;
+	double *y, *init_bary, *init_flux, *init_error, *temp_brights, **simplex;
     
 	fitsfile *fptr;
 	FILE *data;
@@ -231,8 +231,32 @@ int main (int argc, const char * argv[]) {
 		printf("Error: File %s not opened correctly\n", argv[1]);
 		return 1;
 	}
-	fscanf(in, "%s %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %d %d %d %lf %lf %lf %lf", filename, &p_rot, &t_cadence, &o_cadence, &orb_epoch, &width, &orb_per, &b, &Rp, &a, &lam1, &lam2, &nstripes, &nboxes, &PDC_Flag, &desired_days_per_set, &days_per_tick, &ldc1, &ldc2);
-	
+	//fscanf(in, "%s", filename);
+    if ( fgets(filename, sizeof filename, in) != NULL ) {
+        char *newline = strchr(filename, '\n'); /* search for newline character */
+        if ( newline != NULL ) {
+            *newline = '\0'; /* overwrite trailing newline */
+        }
+    }
+    fscanf(in, "%lf", &p_rot);
+    fscanf(in, "%lf", &t_cadence);
+    fscanf(in, "%lf", &o_cadence);
+    fscanf(in, "%lf", &orb_epoch);
+    fscanf(in, "%lf", &width);
+    fscanf(in, "%lf", &orb_per);
+    fscanf(in, "%lf", &b);
+    fscanf(in, "%lf", &Rp);
+    fscanf(in, "%lf", &a);
+    fscanf(in, "%lf", &lam1);
+    fscanf(in, "%lf", &lam2);
+    fscanf(in, "%d", &nstripes);
+    fscanf(in, "%d", &nboxes);
+    fscanf(in, "%d", &PDC_Flag);
+    fscanf(in, "%lf", &desired_days_per_set);
+    fscanf(in, "%lf", &days_per_tick);
+    fscanf(in, "%lf", &ldc1);
+    fscanf(in, "%lf", &ldc2);
+	fclose(in);
     //Fill in fixed values for structs
     s.nboxes = nboxes;
     s.ldc1 = ldc1;
@@ -499,7 +523,7 @@ int main (int argc, const char * argv[]) {
 //        Start While Loop        //
 //                                //
 ////////////////////////////////////
-    
+
     int nn = 0;
     char lastFlag = 0;
     while (!lastFlag) {
@@ -566,7 +590,9 @@ int main (int argc, const char * argv[]) {
         }
         fclose(model);
         // B-Value recovery from Z-Values
-        memcpy(s.brights, (*calculate_S_vals)(s), s.nsb * sizeof(s.brights));
+        temp_brights = (*calculate_S_vals)(s);
+        memcpy(s.brights, temp_brights, s.nsb * sizeof(s.brights));
+        free(temp_brights);
         
         sprintf(fname, "%s/brights_%d.out", output_path, d.file_count);
         bright = fopen(fname, "w");
@@ -596,8 +622,15 @@ int main (int argc, const char * argv[]) {
     
         reset_arrays(s, y, simplex, *d.nelements);
         reset_array_counters(s, d);
+        free(s.brights);
     }
 
+    free(d.c1);
+    free(d.count);
+    free(d.firstelem);
+    free(d.nelements);
+    free(d.EOW);
+    free(s.chi);
     fclose(chi_out);
     free(s.orb_phase);
     free(s.flux);
@@ -607,10 +640,10 @@ int main (int argc, const char * argv[]) {
     free(init_error);
     free(y);
     free(s.bin_phase);
-    free_2d(s.bin_flux, 2);
+    free_2d(s.bin_flux);
     free(s.bin_error);
-    free_2d(s.visibilities, *d.count + 1);
-    free_2d(simplex, s.nsb);
+    free_2d(s.visibilities);
+    free_2d(simplex);
     
     return 0;
 }
@@ -624,16 +657,10 @@ void printerror(int status) {
 	}
 	return;
 }
-void free_2d(double **array, int sizeY) {
+void free_2d(double **array) {
     //Free the 2d arrays that I make with my routine below
-//    for (int i = 0; i < dimension1_max; i++) {
-//        free(x[i]);
-//    }
-//    free(x);
-    for (int i = 0; i < sizeY; i++) {
-        free(array[i]);
-    }
-	free(array);
+    free((void *)array[0]);
+	free((void *)array);
 }
 void nrerror(char error_text[]) {
     //Error reporting for numerical recipes if NMAX is exceeded
@@ -654,13 +681,13 @@ void check_PDC_Flag(int PDC_Flag, int *err_col, int *flux_col) {
 	}
 }
 void reset_array_counters(static_inputs s, dynamic_inputs d) {
-    for (int i = *d.firstelem; i < s.npoints; i++) {
+    for (int i = *d.firstelem; i < *d.count; i++) {
         if (s.bin_phase[i] >= s.bin_phase[*d.firstelem] + s.days_per_tick) {
             *d.firstelem = i;
             break;
         }
     }
-    for (int i = *d.firstelem; i < s.npoints; i++) {
+    for (int i = *d.firstelem; i < *d.count; i++) {
         if (s.bin_phase[i] >= *d.EOW + s.days_per_tick) {
             *d.EOW = s.bin_phase[i];
             *d.nelements = i - *d.firstelem;
@@ -732,11 +759,11 @@ double *calculate_S_vals(static_inputs s) {
     return brights;
 }
 double **make_2d_array(int sizeY, int sizeX) {
-    double **arr2d;
+    double **arr2d = malloc(sizeY * sizeof(double *));
     
-    arr2d = (double**)malloc(sizeY * sizeof(double*));
-    for (int i = 0; i < sizeY; i++) {
-        arr2d[i] = (double*)malloc(sizeX * sizeof(double));
+    arr2d[0] = malloc(sizeY * sizeX * sizeof(double));
+    for (int i = 1; i < sizeY; i++) {
+        arr2d[i] = arr2d[0] + i * sizeX;
     }
 	return arr2d;
 }
