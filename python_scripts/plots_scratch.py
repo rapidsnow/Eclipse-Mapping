@@ -199,12 +199,22 @@ def rms_over_time(path, outfile, star, regionMatrix):
     plt.savefig(path + outfile + ".png", dpi=120)
     plt.close()
     
-def twoD_brights_over_time(path, outfile, star, regionList):
+def twoD_brights_over_time(path, outfile, star, regionList, stripes=False):
     DIMENSION_SCALE = 50
     
+    if stripes:
+        startIndex = star.nBoxes
+        stopIndex = star.nsb
+        cm = 'RdGy'
+    else:
+        startIndex = 0
+        stopIndex = star.nBoxes
+        cm = 'hot'
+    nRegions = startIndex - stopIndex
+    
     #Set up arrays for brightnesses and positions
-    nx = len(regionList[0].get_brights()) * DIMENSION_SCALE #Number of files * 50
-    ny = len(regionList[:star.nBoxes]) * DIMENSION_SCALE #Number of boxes and stripes * 50
+    nx = (len(regionList[0].get_brights()) + 1) * DIMENSION_SCALE + 4 #Number of files * 50 + 1 goal column + 8 pixels to separate
+    ny = len(regionList[startIndex:stopIndex]) * DIMENSION_SCALE #Number of boxes and stripes * 50
     img = np.zeros((ny,nx))
 
     #Populate the pixel values
@@ -214,22 +224,24 @@ def twoD_brights_over_time(path, outfile, star, regionList):
     idx2 = DIMENSION_SCALE
     
     
-    for region in regionList[:star.nBoxes]:
+    for region in regionList[startIndex:stopIndex]:
         idx1 = 0
         idx2 = DIMENSION_SCALE
         for brightness in region.get_brights():
             img[idy1:idy2, idx1:idx2] = brightness
             idx1 += DIMENSION_SCALE
             idx2 += DIMENSION_SCALE
+        img[idy1:idy2, nx - DIMENSION_SCALE:nx] = region.goalVal
         idy1 += DIMENSION_SCALE
         idy2 += DIMENSION_SCALE
 
-    plt.imshow(img, cmap='hot', vmin=0.88, vmax=1.05)
+
+    plt.imshow(img, cmap=cm, vmin=0.88, vmax=1.05)
     plt.clim(0.88,1.05)
     plt.colorbar(shrink=0.55)
     plt.xlabel('Window Number')
     plt.xticks(np.arange(0, len(regionList[0].get_brights()), 5) * 50, range(0,len(regionList[0].get_brights()), 5))
-    plt.yticks(np.arange(0, star.nBoxes * 50, 100), np.arange(0, 360, (360/star.nBoxes) * 2))
+    plt.yticks(np.arange(0, nRegions * 50, 100), np.arange(0, 360, (360/nRegions) * 2))
     plt.ylabel('Longitude')
     plt.title('Brightness values over time: ' + path)
     
@@ -305,85 +317,87 @@ def plot_lc_and_brights(path, outfile, modelLCList, binnedLC, star, regionList, 
         while binnedLC.time[stop] < modelLC.time[-1]:
             stop += 1    
         
+        ###############################
+        # Make the overall lightcurve #
+        ###############################
+        plt.plot(modelLC.time, modelLC.flux, c='black', label="Model")
+        
+        #Order matters here. MPL arranges things such that the most recent is on the top
+        plt.scatter(binnedLC.time, binnedLC.flux, c='green', marker = '+', label="Data")
+        plt.scatter(binnedLC.time[start:stop], binnedLC.flux[start:stop], c='red', marker='+', label="Brightness Map Region")
+        
+        plt.ylim(ymax=binMax + (binDiff * .85))
+        plt.ylim(ymin=binMin - (binDiff * .1))
+        
+        plt.xlabel("Orbital Phase")
+        plt.ylabel("Relative Flux")
+        plt.title("Model Light Curve Vs. Data - Window %d" % currentWindow)
+        plt.savefig(path + "model_fit_w%d.png" % currentWindow) 
+        plt.close()
+            
+        ###########################
+        # Make the brightness map #
+        ###########################
+        img = make_bright_image(star, regionList, currentWindow)
+        
+        plt.imsave(path + "/temp.png", img, cmap='hot', vmin=0.85, vmax=1.15)
+        plt.imshow(img, cmap='hot')    
+        plt.clim(0.85,1.15)
+        plt.colorbar(shrink=0.5)    
+    
+        #Create the plot
+        bmap = Basemap(projection='moll', lon_0 = 0)
+        bmap.warpimage(path + "/temp.png")
+        plt.savefig(path + "brightness_map_w%d.png" % currentWindow)
+        plt.close()
+            
+        ##################
+        # Transit Insets #
+        ##################
+
         #TODO: Change this to actually be nice and pretty rather than dirty and hackish
         #   However, in the meantime... read in the transit files the old way(ew)
-        trans_info = path + transFileBaseName + "_%d.out" % currentWindow
-        try:
-            information = csv.reader(open(trans_info))
-        except:
-            information = []
-        transitCount = 0
+#        trans_info = path + transFileBaseName + "_%d.out" % currentWindow
+#        try:
+#            information = csv.reader(open(trans_info))
+#        except:
+#            information = []
+#        transitCount = 0
         
-        for row in information:
-            ###############################
-            # Make the overall lightcurve #
-            ###############################
-            plt.plot(modelLC.time, modelLC.flux, c='black', label="Model")
-            
-            #Order matters here. MPL arranges things such that the most recent is on the top
-            plt.scatter(binnedLC.time, binnedLC.flux, c='green', marker = '+', label="Data")
-            plt.scatter(binnedLC.time[start:stop], binnedLC.flux[start:stop], c='red', marker='+', label="Brightness Map Region")
-            
-            plt.ylim(ymax=binMax + (binDiff * .85))
-            plt.ylim(ymin=binMin - (binDiff * .1))
-            
-            plt.xlabel("Orbital Phase")
-            plt.ylabel("Relative Flux")
-            plt.title("Model Light Curve Vs. Data - Window %d" % currentWindow)
-            
-            
-            ###########################
-            # Make the brightness map #
-            ###########################
-            img = make_bright_image(star, regionList, currentWindow)
-            
-            ax = plt.axes([.15, .6, .32, .32])
-            plt.imsave(path + "/temp.png", img, cmap='hot', vmin=0.85, vmax=1.15)
-            plt.imshow(img, cmap='hot')    
-            plt.clim(0.85,1.15)
-            plt.colorbar(shrink=0.5)    
-    
-            #Create the plot
-            bmap = Basemap(projection='moll', lon_0 = 0)
-            bmap.warpimage(path + "/temp.png")
-        
-            ##################
-            # Transit Insets #
-            ##################
-            transStart = int(row[0]) - start
-            transStop = int(row[1]) - start
-            
-            #TODO: Fix this in the C code.
-            #There is a leftover transit relic that is incorrect
-            #when starting in transit or ending in transit
-            if transStop < transStart:
-                plt.close()
-                continue  
-                          
-            transMax = max(modelLC.flux[transStart:transStop])
-            transMin = min(modelLC.flux[transStart:transStop])
-            
-            transDiff = transMax - transMin
-            
-            transAx = plt.axes([.58,.6,.27,.27])
-            plt.plot(modelLC.time[transStart:transStop], modelLC.flux[transStart:transStop], c='black', label="Model")
-            plt.scatter(binnedLC.time[transStart + start:transStop + start], binnedLC.flux[transStart + start:transStop + start], c='red', marker='+', label="Data")
-            plt.xlabel("Orbital Phase")
-            plt.ylabel("Relative Flux")
-            plt.title("Transit %d" % transitCount)
-            
-            plt.ylim(ymax=transMax + (transDiff * .08))
-            plt.ylim(ymin=transMin - (transDiff * .08))
-            
-            #################
-            # Save the Plot #
-            #################
-            fig = plt.gcf()
-            fig.set_size_inches(18.5,11.5)
-            plt.savefig(path + outfile + "_w%02d_t%02d" % (currentWindow, transitCount) + ".png", dpi=120)
-            print "Window:  %d Trans: %d" % (currentWindow, transitCount)
-            transitCount += 1
-            plt.close()
+#        for row in information:
+#            transStart = int(row[0]) - start
+#            transStop = int(row[1]) - start
+#            
+#            #TODO: Fix this in the C code.
+#            #There is a leftover transit relic that is incorrect
+#            #when starting in transit or ending in transit
+#            if transStop < transStart:
+#                plt.close()
+#                continue  
+#                          
+#            transMax = max(modelLC.flux[transStart:transStop])
+#            transMin = min(modelLC.flux[transStart:transStop])
+#            
+#            transDiff = transMax - transMin
+#            
+#            plt.plot(modelLC.time[transStart:transStop], modelLC.flux[transStart:transStop], c='black', label="Model")
+#            plt.scatter(binnedLC.time[transStart + start:transStop + start], binnedLC.flux[transStart + start:transStop + start], c='red', marker='+', label="Data")
+#            plt.xlabel("Orbital Phase")
+#            plt.ylabel("Relative Flux")
+#            plt.title("Transit %d" % transitCount)
+#            
+#            plt.ylim(ymax=transMax + (transDiff * .08))
+#            plt.ylim(ymin=transMin - (transDiff * .08))
+#            
+#            #################
+#            # Save the Plot #
+#            #################
+#            fig = plt.gcf()
+#            fig.set_size_inches(18.5,11.5)
+#            plt.savefig(path + outfile + "_w%02d_t%02d" % (currentWindow, transitCount) + ".png", dpi=120)
+#            print "Window:  %d Trans: %d" % (currentWindow, transitCount)
+#            transitCount += 1
+#            plt.close()
         
         #Increment the window count for the brightness map maker
         currentWindow += 1

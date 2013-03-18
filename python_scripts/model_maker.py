@@ -78,10 +78,10 @@ if __name__ == '__main__':
     error = [float(temp.split()[2]) for temp in open("../binned.out")]
     
     visMatrix = Visibility("../Vis_Plots/", 18, 6)
-    brights = Brightness(path, "description.txt")
+    brights = Brightness(path, "../description.txt")
     
     flux = calculate_model(visMatrix, brights)
     phase = visMatrix.get_phase()
     
-    make_noise_curve(path, "12_noise_model.out", 12, phase, flux, error)
-    make_clean_curve(path, "model.out", phase, flux, error)
+    make_noise_curve(path, "14_noise_model.out", 14, phase, flux, error)
+    #make_clean_curve(path, "model.out", phase, flux, error)
