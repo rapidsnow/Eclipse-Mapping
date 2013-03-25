@@ -211,7 +211,6 @@ int main (int argc, const char * argv[]) {
     FILE *readable_input;
     FILE *chi_out;
     FILE *trans_out;
-  	//FILE *vis_output;
     
     static_inputs s;
     dynamic_inputs d;
@@ -273,8 +272,8 @@ int main (int argc, const char * argv[]) {
     s.t_cadence = t_cadence;
     s.orb_per = orb_per;
     if (s.nboxes) {
-        s.lat1 = (b - Rp + 1)*(PI/2);
-        s.lat2 = (b + Rp + 1)*(PI/2);
+        s.lat2 = acos(b - Rp);
+        s.lat1 = acos(b + Rp);
     } else {
         s.lat1 = s.lat2 = 0;
     }
@@ -360,6 +359,10 @@ int main (int argc, const char * argv[]) {
     /////////////////////////////////////////////////////////////////////////////////////////////
     sprintf(fname, "%s/chi.out", output_path);
     chi_out = fopen(fname, "w");
+    if (chi_out == NULL) {
+		printf("Error: File %s not opened correctly\n", fname);
+		return 1;
+	}
     
     *d.nelements = npoints;
     d.file_count = 0;
@@ -416,6 +419,10 @@ int main (int argc, const char * argv[]) {
     //Open the binned lightcurve output file
     sprintf(fname, "%s/binned.out", output_path);
     data = fopen(fname, "w");
+    if (data == NULL) {
+		printf("Error: File %s not opened correctly\n", fname);
+		return 1;
+	}
     
     *d.nelements = npoints;
     bin_data(s, d, phase_fix);
@@ -453,9 +460,15 @@ int main (int argc, const char * argv[]) {
 ////////// End visibilities ///////////////////////////////////////////////////////////////////////
     
     
-/* ////////// Begin visibilities Outputs /////////////////////////////////////////////////////////////
+ ////////// Begin visibilities Outputs /////////////////////////////////////////////////////////////
+    FILE *vis_output; //Moved this declaration here so that I can just comment the whole section
+    
     sprintf(fname, "%s/Vis_Plots/sum_bvals.out", output_path);
     vis_output = fopen(fname, "w");
+    if (vis_output == NULL) {
+        printf("Error: File %s not opened correctly\n", fname);
+        return 1;
+    }
     for (int j = 0; j < *d.count; j++) {
         double sum = 0;
         for (int i = 0; i < s.nboxes; i++) {
@@ -467,6 +480,10 @@ int main (int argc, const char * argv[]) {
     
     sprintf(fname, "%s/Vis_Plots/sum_zvals.out", output_path);
     vis_output = fopen(fname, "w");
+    if (vis_output == NULL) {
+        printf("Error: File %s not opened correctly\n", fname);
+        return 1;
+    }
     for (int j = 0; j < *d.count; j++) {
         double sum = 0;
         for (int i = s.nboxes; i < s.nsb; i++) {
@@ -478,6 +495,10 @@ int main (int argc, const char * argv[]) {
     
     sprintf(fname, "%s/Vis_Plots/sum_all.out", output_path);
     vis_output = fopen(fname, "w");
+    if (vis_output == NULL) {
+        printf("Error: File %s not opened correctly\n", fname);
+        return 1;
+    }
     for (int j = 0; j < *d.count; j++) {
         double sum = 0;
         for (int i = s.nboxes; i < s.nsb; i++) {
@@ -493,6 +514,10 @@ int main (int argc, const char * argv[]) {
     for (int i = 0; i < s.nboxes; i++) {
         sprintf(fname, "%s/Vis_Plots/b%d.out", output_path, i);
         vis_output = fopen(fname, "w");
+        if (vis_output == NULL) {
+            printf("Error: File %s not opened correctly\n", fname);
+            return 1;
+        }
         for (int j = 0; j < *d.count; j++) {
             fprintf(vis_output, "%lf %lf\n", s.bin_phase[j], s.visibilities[j][i]);
         }
@@ -501,12 +526,16 @@ int main (int argc, const char * argv[]) {
     for (int i = s.nboxes; i < s.nsb; i++) {
         sprintf(fname, "%s/Vis_Plots/z%d.out", output_path, i - nboxes);
         vis_output = fopen(fname, "w");
+        if (vis_output == NULL) {
+            printf("Error: File %s not opened correctly\n", fname);
+            return 1;
+        }
         for (int j = 0; j < *d.count; j++) {
             fprintf(vis_output, "%lf %lf\n", s.bin_phase[j], s.visibilities[j][i]);
         }
         fclose(vis_output);
     }
-////////// End visibilities Outputs /////////////////////////////////////////////////////////////// */
+////////// End visibilities Outputs /////////////////////////////////////////////////////////////// 
     
     //Set up array boundaries
     *d.firstelem = 0;
@@ -535,6 +564,10 @@ int main (int argc, const char * argv[]) {
         //Print the unbinned lightcurve to an easily plottable format
         sprintf(fname, "%s/ub_%d.out", output_path, d.file_count);
         hey = fopen(fname, "w");
+        if (hey == NULL) {
+            printf("Error: File %s not opened correctly\n", fname);
+            return 1;
+        }
         for (int i = *d.firstelem; i < *d.nelements + *d.firstelem; i++) {
             if (s.flux[i] != 0) {
                 fprintf(hey, "%lf %lf\n", s.orb_phase[i], s.flux[i]/s.normFactor);
@@ -546,7 +579,7 @@ int main (int argc, const char * argv[]) {
         d.ld_flag = 1;
         
 ////////// Start Amoeba ///////////////////////////////////////////////////////////////////////////
-        s.brights = malloc((s.nsb) * sizeof(s.brights));
+        if((s.brights = malloc((s.nsb) * sizeof(s.brights))) == NULL) return 5;
         for(int i = 0; i < s.nsb; i++) {
             s.brights[i] = 1;
         }
@@ -571,7 +604,7 @@ int main (int argc, const char * argv[]) {
         printf("Done with Amoeba: %d\n", nn);
         
 ////////// End Amoeba /////////////////////////////////////////////////////////////////////////////
-        
+        fprintf(chi_out, "%lf\n", *s.chi/ *d.nelements);
         
 ////////// Start Light Curve Outputs //////////////////////////////////////////////////////////////
         if(argc == 4) {
@@ -580,6 +613,10 @@ int main (int argc, const char * argv[]) {
             sprintf(fname, "%s/model_%d.out", output_path, d.file_count);
         }
         model = fopen(fname, "w");
+        if (model == NULL) {
+            printf("Error: File %s not opened correctly\n", fname);
+            return 1;
+        }
         for (int i = *d.firstelem; i < *d.nelements + *d.firstelem; i++) {
             temp_flux = (*calculate_model_flux)(s, calculate_S_vals, i);
             if (argc == 4) { //Lightcurve detrending flag
@@ -596,6 +633,10 @@ int main (int argc, const char * argv[]) {
         
         sprintf(fname, "%s/brights_%d.out", output_path, d.file_count);
         bright = fopen(fname, "w");
+        if (bright == NULL) {
+            printf("Error: File %s not opened correctly\n", fname);
+            return 1;
+        }
         for (int i = 0; i < s.nsb; i++) {
             fprintf(bright, "%lf\n", s.brights[i]);
         }
@@ -605,6 +646,10 @@ int main (int argc, const char * argv[]) {
 ////////// Start Transit Range Outputs ////////////////////////////////////////////////////////////
         sprintf(fname, "%s/trans_%d.out", output_path, d.file_count);
         trans_out = fopen(fname, "w");
+        if (trans_out == NULL) {
+            printf("Error: File %s not opened correctly\n", fname);
+            return 1;
+        }
         for (int ii = 1 + *d.firstelem; ii < *d.nelements + *d.firstelem - 1; ii++) {
             if (s.bin_flux[ii][1] && !s.bin_flux[ii-1][1]) {
                 start_val = ii;
@@ -739,8 +784,7 @@ double *calculate_S_vals(static_inputs s) {
      This should reduce human error. */
     double tbright;
     double *brights;
-    brights = malloc(s.nsb * sizeof(brights));
-    
+    if((brights = malloc(s.nsb * sizeof(brights))) == NULL) return 5;
     for (int j = 0; j < s.nboxes; j++) {
         brights[j] = s.brights[j];
     }
@@ -760,6 +804,7 @@ double *calculate_S_vals(static_inputs s) {
 }
 double **make_2d_array(int sizeY, int sizeX) {
     double **arr2d = malloc(sizeY * sizeof(double *));
+    if(arr2d == NULL) exit(5);
     
     arr2d[0] = malloc(sizeY * sizeX * sizeof(double));
     for (int i = 1; i < sizeY; i++) {
@@ -842,7 +887,7 @@ void amoeba(double **p, double y[], int ndim, double ftol, double (*funk)(static
 	
     //use_p and use_y allow us to use the numerical recipes indexing scheme (start at 1 instead of 0)
     
-    psum = malloc(ndim * sizeof(psum));
+    if((psum = malloc(ndim * sizeof(psum))) == NULL) exit(5);
 	*nfunk = 0;
 	GET_PSUM
 	for (;;) {
@@ -1400,7 +1445,7 @@ double amotry(double **p, double y[], double psum[], int ndim, double (*funk)(st
 	int j;
 	double fac1, fac2, ytry, *ptry;
 	
-	ptry = malloc(ndim * sizeof(ptry));
+	if((ptry = malloc(ndim * sizeof(ptry))) == NULL) exit(5);
 	fac1 = (1.0 - fac)/ndim;
 	fac2 = fac1 - fac;
 	for (j = 0; j < ndim; j++) {

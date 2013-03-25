@@ -205,7 +205,7 @@ def twoD_brights_over_time(path, outfile, star, regionList, stripes=False):
     if stripes:
         startIndex = star.nBoxes
         stopIndex = star.nsb
-        cm = 'RdGy'
+        cm = 'hot'
     else:
         startIndex = 0
         stopIndex = star.nBoxes
