@@ -15,6 +15,10 @@ def mag_to_index(mag):
     return int((float(mag) - 7) * 2)
 
 def read_three_or_two(filename):
+    '''
+    This will try to read a three-column file and return phase, flux, and error lists.
+    If it is a two column file, the error list will be empty.
+    '''
     error = []
     flux = []
     phase = []
@@ -35,6 +39,9 @@ def read_three_or_two(filename):
     return phase, flux, error
 
 def generate_noise(flux, error, mag=None):
+    '''
+    Uses the error counts provided by Kepler to simulate Gaussian noise on a noiseless synthetic lightcurve.
+    '''
     #Count errors for Kepler light curves.
     #Magnitudes start at 7.0 for index 0 and go up by .5 for each successive index
     sigmas = [float(x) for x in [39, 49, 62, 78, 99, 125, 159, 202, \

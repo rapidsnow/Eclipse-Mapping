@@ -5,6 +5,10 @@ import csv
 from mpl_toolkits.basemap import Basemap
  
 class Star(object):
+    '''
+    Container for useful information about the star that can be passed through methods easier than the parameters themselves. 
+    Also, calculates lat1 and lat2 for us.
+    '''
     def __init__(self, b, Rp, nStripes, nBoxes):
         self.b = b
         self.Rp = Rp
@@ -12,10 +16,18 @@ class Star(object):
         self.nBoxes = nBoxes
         self.nsb = nBoxes + nStripes
         self.boxPerStripe = nBoxes/nStripes
-        self.lat1 = b - Rp
-        self.lat2 = b + Rp
+        self.lat1 = math.acos(b + Rp)
+        self.lat2 = math.acos(b - Rp)
 
 class Region(object):
+    '''
+    Container that represents a region over time. 
+    Each value in the brights array represents the brightness of this region for a different (usually sequential) window.
+    It is best to create this via the make_brightness_structures method rather than doing it by hand.
+    goalVal only applies to synthetic lightcurves. It corresponds to the region's value that was used to create a given synthetic curve
+    
+    Has a few useful methods to operate on the data. The most useful one is rms which returns the RMS of the brightness of the region over all windows versus the stated goalVal
+    '''
     def __init__(self, nFiles, goalVal=1):
         self.brights = [0] * nFiles
         self.goalVal = goalVal
@@ -43,7 +55,7 @@ class Region(object):
         
 class Light_Curve(object):
     '''
-    Takes a filename and creates a lightcurve object
+    Takes a filename and creates a lightcurve object with flux, time, and error arrays
     '''
     def __init__(self, filename):
         temp = []
@@ -171,7 +183,30 @@ def regions_over_time(path, outfile, star, regionList):
         plt.close()
         
 def rms_vs_region(path, outfile, star, regionList):
-    plt.scatter(range(star.nsb), [region.rms() for region in regionList])
+    regionNum = 0
+    
+    regionTracker = []
+    regionAbbTracker = []
+    rmsTracker = []
+    abberantTracker = []
+    
+    for region in regionList:
+        regionNum += 1
+        if abs(1.0 - region.goalVal) < .000000001:
+            rmsTracker.append(region.rms())
+            regionTracker.append(regionNum)
+        else:
+            abberantTracker.append(region.rms())
+            regionAbbTracker.append(regionNum)
+                
+    plt.scatter(regionTracker, rmsTracker, marker='o', color='b')    
+    plt.scatter(regionAbbTracker, abberantTracker, marker='D', color='R')
+    plt.plot([star.nBoxes + .5, star.nBoxes + .5], [0, 1.1 * max(rmsTracker + abberantTracker)], color='black')
+    
+    plt.xlim(xmin = -1)
+    plt.xlim(xmax = star.nsb + 1)
+    plt.ylim(ymin = 0)
+    plt.ylim(ymax = 1.1 * max(rmsTracker + abberantTracker))
     
     plt.xlabel("Region Number")
     plt.ylabel("RMS")
@@ -188,10 +223,10 @@ def rms_over_time(path, outfile, star, regionMatrix):
     for regionList in regionMatrix:
         simCount += 1
         for region in regionList:
-            simTracker.append(simCount)
             rmsTracker.append(region.rms())
+            simTracker.append(simCount)
             
-    plt.scatter(simTracker, rmsTracker)
+    plt.scatter(simTracker, rmsTracker, marker='o', color='b')
     plt.xlabel('Simulation ID')
     plt.ylabel('RMS')
     plt.title('RMS vs Simulation ID')
@@ -200,20 +235,30 @@ def rms_over_time(path, outfile, star, regionMatrix):
     plt.close()
     
 def twoD_brights_over_time(path, outfile, star, regionList, stripes=False):
+    '''
+    Creates the box and stripe plots
+    path: path to output
+    outfile: base name of file, do not include the path or the extension name
+    star: a Star object from above
+    regionList: a list of Region objects from above
+    stripes: Do you want a stripe or a box plot? The default is box plot
+    '''
     DIMENSION_SCALE = 50
     
     if stripes:
         startIndex = star.nBoxes
         stopIndex = star.nsb
         cm = 'hot'
+        #cm = 'RdGy'
     else:
         startIndex = 0
         stopIndex = star.nBoxes
         cm = 'hot'
+        #cm = 'RdGy'
     nRegions = startIndex - stopIndex
     
     #Set up arrays for brightnesses and positions
-    nx = (len(regionList[0].get_brights()) + 1) * DIMENSION_SCALE + 4 #Number of files * 50 + 1 goal column + 8 pixels to separate
+    nx = (len(regionList[0].get_brights()) + 1) * DIMENSION_SCALE + 4 #Number of files * 50 + 1 goal column + 4 pixels to separate
     ny = len(regionList[startIndex:stopIndex]) * DIMENSION_SCALE #Number of boxes and stripes * 50
     img = np.zeros((ny,nx))
 
@@ -250,7 +295,9 @@ def twoD_brights_over_time(path, outfile, star, regionList, stripes=False):
     
     
 def make_bright_image(star, regionList, currentWindow):
-    
+    '''
+    Utility that makes the matrix for the brightness map. Shouldn't really be called on its own
+    '''
     brights = np.array([region.get_bright_at_time(currentWindow) for region in regionList])
     
     #Set up arrays for brightnesses and positions
@@ -350,55 +397,119 @@ def plot_lc_and_brights(path, outfile, modelLCList, binnedLC, star, regionList, 
         bmap.warpimage(path + "/temp.png")
         plt.savefig(path + "brightness_map_w%d.png" % currentWindow)
         plt.close()
-            
-        ##################
-        # Transit Insets #
-        ##################
-
-        #TODO: Change this to actually be nice and pretty rather than dirty and hackish
-        #   However, in the meantime... read in the transit files the old way(ew)
-#        trans_info = path + transFileBaseName + "_%d.out" % currentWindow
-#        try:
-#            information = csv.reader(open(trans_info))
-#        except:
-#            information = []
-#        transitCount = 0
-        
-#        for row in information:
-#            transStart = int(row[0]) - start
-#            transStop = int(row[1]) - start
-#            
-#            #TODO: Fix this in the C code.
-#            #There is a leftover transit relic that is incorrect
-#            #when starting in transit or ending in transit
-#            if transStop < transStart:
-#                plt.close()
-#                continue  
-#                          
-#            transMax = max(modelLC.flux[transStart:transStop])
-#            transMin = min(modelLC.flux[transStart:transStop])
-#            
-#            transDiff = transMax - transMin
-#            
-#            plt.plot(modelLC.time[transStart:transStop], modelLC.flux[transStart:transStop], c='black', label="Model")
-#            plt.scatter(binnedLC.time[transStart + start:transStop + start], binnedLC.flux[transStart + start:transStop + start], c='red', marker='+', label="Data")
-#            plt.xlabel("Orbital Phase")
-#            plt.ylabel("Relative Flux")
-#            plt.title("Transit %d" % transitCount)
-#            
-#            plt.ylim(ymax=transMax + (transDiff * .08))
-#            plt.ylim(ymin=transMin - (transDiff * .08))
-#            
-#            #################
-#            # Save the Plot #
-#            #################
-#            fig = plt.gcf()
-#            fig.set_size_inches(18.5,11.5)
-#            plt.savefig(path + outfile + "_w%02d_t%02d" % (currentWindow, transitCount) + ".png", dpi=120)
-#            print "Window:  %d Trans: %d" % (currentWindow, transitCount)
-#            transitCount += 1
-#            plt.close()
         
         #Increment the window count for the brightness map maker
         currentWindow += 1
     
+def transit_plots(path, outfile, modelLCList, binnedLC, star, regionList, transFileBaseName):
+        currentWindow = 0
+        for modelLC in modelLCList:
+            #Determine the current window start and stop indices
+            start = 0
+            while binnedLC.time[start] < modelLC.time[0]:
+                start += 1
+            stop = start
+            while binnedLC.time[stop] < modelLC.time[-1]:
+                stop += 1   
+                
+            #TODO: Change this to actually be nice and pretty rather than dirty and hackish
+            #   However, in the meantime... read in the transit files the old way(ew)
+            trans_info = path + transFileBaseName + "_%d.out" % currentWindow
+            try:
+                information = csv.reader(open(trans_info))
+            except:
+                information = []
+            transitCount = 0
+            
+            plt.xlabel("Orbital Phase")
+            plt.ylabel("Relative Flux")
+            plt.title("Transits - Window %d" % currentWindow)
+            #plt.xlim(xmin=start, xmax=stop)
+            
+            scale = 0
+            for row in information:
+                transStart = int(row[0]) - start
+                transStop = int(row[1]) - start
+                
+                if transStop < transStart:
+                    plt.close()
+                    continue  
+                
+                modelIntTime = [int(time + 0.5) for time in modelLC.time[transStart:transStop]] #The + 0.5 here is because epochs of transits are always at phase 0. int() works by truncating anything after the decimal point, so the first half of the transit comes second.
+                binIntTime = [int(time + 0.5) for time in binnedLC.time[transStart + start:transStop + start]]
+                plt.plot(modelLC.time[transStart:transStop] - modelIntTime, modelLC.flux[transStart:transStop] + scale, c='black', label="Model")
+                plt.scatter(binnedLC.time[transStart + start:transStop + start] - binIntTime, binnedLC.flux[transStart + start:transStop + start] + scale, c='red', marker='+', label="Data")
+                
+                scale += .015 #What should this be?
+
+            #################
+            # Save the Plot #
+            #################
+            fig = plt.gcf()
+            fig.set_size_inches(8.5,11)
+            plt.savefig(path + outfile + "_w%02d" % currentWindow + ".png", dpi=150)
+            plt.close()
+            
+            currentWindow += 1
+    
+def noise_comp(input_vector):
+    '''
+    Stupid little method that I wrote to plot out the different levels of noise for a paper. 
+    It has no scientific value really and is only in here in case we write a paper about a different object.
+    '''
+    LC_List = []
+    scale = 0
+    for inp in input_vector:
+        LC_List.append(Light_Curve(inp))
+        
+    colorArray = ['b','r','g']
+    iterator = 0
+    for LC in LC_List:
+        plt.scatter(LC.get_time(), LC.get_flux() + scale, marker='.', color=colorArray[iterator])
+        iterator += 1
+        scale += .033
+        
+    plt.title("Noise levels for synthetic light curves")
+    plt.xlabel("Phase")
+    plt.ylabel("Relative Flux\n(Offset for each curve to visualize comparative noise)")
+    
+    plt.xlim(xmin=LC_List[0].get_time()[0], xmax=LC_List[0].get_time()[-1])
+    
+    plt.savefig("noise_levels.png", dpi=180)
+    
+def make_average_file(path, output, star, regionList):
+    '''
+    Some quantifiable measure of the average of a region over time, not actually a plot
+    '''
+    boxAve = 0
+    stripeAve = 0
+    darkStripe = 0
+    darkBox = 0
+    totalAve = 0
+    
+    outfile = open(path + output + ".txt", "w")
+    
+    for region in regionList[:star.nBoxes]:
+        if abs(1.0 - region.goalVal) < .00000001:
+            boxAve += region.get_mean()
+            totalAve += region.get_mean()
+            outfile.write("%f\n" % region.get_mean())
+        else:
+            darkBox += 1
+    for region in regionList[star.nBoxes:]:
+        if abs(1.0 - region.goalVal) < .00000001:
+            stripeAve += region.get_mean()
+            totalAve += region.get_mean()
+            outfile.write("%f\n" % region.get_mean())
+        else:
+            darkStripe += 1
+    nBoxAve = boxAve/float(star.nBoxes - darkBox)
+    boxAve = boxAve/float(star.nBoxes)
+    nTotalAve = totalAve/float(star.nsb - darkBox - darkStripe)
+    totalAve = totalAve/float(star.nsb)
+    nStripeAve = stripeAve/float(star.nStripes - darkStripe)
+    stripeAve = stripeAve/float(star.nStripes)
+    
+    outfile.write("\n------------ Totals ------------\nTotal Average: %f\nBox Average: %f\nStripe Average: %f\n\nNon-Darkened Total Average: %f\nNon-Darkened Box Average: %f\nNon-Darkened Stripe Average: %f\n" % (boxAve, stripeAve, totalAve, nBoxAve, nStripeAve, nTotalAve))
+        
+    outfile.close()

@@ -10,6 +10,7 @@
 #define NR_END 1
 #define FREE_ARG char*
 #define NMAX 500000
+#define NORM_INDEX 100
 #define GET_PSUM \
 for (j=0;j<ndim;j++) {\
 for (sum=0.0,i=0;i<mpts;i++) sum += p[i][j]; \
@@ -443,6 +444,19 @@ int main (int argc, const char * argv[]) {
         }
     }
     fclose(data);
+    //Print the unbinned lightcurve to an easily plottable format
+    sprintf(fname, "%s/ub.out", output_path);
+    hey = fopen(fname, "w");
+    if (hey == NULL) {
+        printf("Error: File %s not opened correctly\n", fname);
+        return 1;
+    }
+    for (int i = 0; i < npoints; i++) {
+        if (s.flux[i] != 0) {
+            fprintf(hey, "%lf %lf\n", s.orb_phase[i], s.flux[i]/s.normFactor);
+        }
+    }
+    fclose(hey);
 ////////// End Binning ////////////////////////////////////////////////////////////////////////////
 
 ////////// Start visibilities /////////////////////////////////////////////////////////////////////
@@ -460,7 +474,7 @@ int main (int argc, const char * argv[]) {
 ////////// End visibilities ///////////////////////////////////////////////////////////////////////
     
     
- ////////// Begin visibilities Outputs /////////////////////////////////////////////////////////////
+/* ////////// Begin visibilities Outputs /////////////////////////////////////////////////////////////
     FILE *vis_output; //Moved this declaration here so that I can just comment the whole section
     
     sprintf(fname, "%s/Vis_Plots/sum_bvals.out", output_path);
@@ -535,7 +549,7 @@ int main (int argc, const char * argv[]) {
         }
         fclose(vis_output);
     }
-////////// End visibilities Outputs /////////////////////////////////////////////////////////////// 
+////////// End visibilities Outputs /////////////////////////////////////////////////////////////// */
     
     //Set up array boundaries
     *d.firstelem = 0;
@@ -561,19 +575,6 @@ int main (int argc, const char * argv[]) {
             *d.nelements = *d.count - *d.firstelem;
         }
         nn++;
-        //Print the unbinned lightcurve to an easily plottable format
-        sprintf(fname, "%s/ub_%d.out", output_path, d.file_count);
-        hey = fopen(fname, "w");
-        if (hey == NULL) {
-            printf("Error: File %s not opened correctly\n", fname);
-            return 1;
-        }
-        for (int i = *d.firstelem; i < *d.nelements + *d.firstelem; i++) {
-            if (s.flux[i] != 0) {
-                fprintf(hey, "%lf %lf\n", s.orb_phase[i], s.flux[i]/s.normFactor);
-            }
-        }
-        fclose(hey);
         
         //Assign useful variables to structs
         d.ld_flag = 1;
@@ -784,7 +785,7 @@ double *calculate_S_vals(static_inputs s) {
      This should reduce human error. */
     double tbright;
     double *brights;
-    if((brights = malloc(s.nsb * sizeof(brights))) == NULL) return 5;
+    if((brights = malloc(s.nsb * sizeof(brights))) == NULL) exit(5);
     for (int j = 0; j < s.nboxes; j++) {
         brights[j] = s.brights[j];
     }
@@ -821,13 +822,32 @@ const char *get_filename_ext(const char *filename) {
 double getNormVal (double **bin_flux, long npoints) {
     /* Get a flux normalization value for the
      entire dataset, not just each individual run */
-    double normFactor = bin_flux[0][0];
-    for (int i = 0; i <= npoints; i++) {
-        if (bin_flux[i][0] > normFactor) {
-            normFactor = bin_flux[i][0];
-        }
+    //Declare the comparator function
+    int compare(const void *elem1, const void *elem2);
+    
+    //Allocate space for an array so that the bin_flux doesn't get changed
+    double *flux_copy = malloc(npoints * sizeof(flux_copy));
+    if (flux_copy == NULL) exit(5);
+    
+    //Copy the contents of bin_flux
+    for (int i = 0; i < npoints; i++) {
+        flux_copy[i] = bin_flux[i][0];
     }
+    //Sort and choose the NORM_INDEX (set at top) value of flux to normalize to
+    qsort(flux_copy, sizeof(flux_copy)/sizeof(*flux_copy), sizeof(*flux_copy), compare);
+    double normFactor = flux_copy[NORM_INDEX];
+    
+    free(flux_copy);
     return normFactor;
+}
+int compare(const void *elem1, const void *elem2) {
+    double f = *((double*)elem1);
+    double s = *((double*)elem2);
+    //f > s - f < s gives desired behavior for qsort
+    //f = s ->  0
+    //f > s ->  1
+    //f < s -> -1
+    return (f > s) - (f < s);
 }
 
 //====== Conversion Functions =========================================================================================

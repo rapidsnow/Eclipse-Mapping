@@ -43,6 +43,7 @@ class Visibility(object):
 class Brightness(object):
     '''
     Just an automatic container for a list of brightness values
+    Kind of useless now, but at least it automatically reads in the array
     '''
     def __init__(self, path, filename):
         self.brights = [float(bright.rstrip('\r\n')) for bright in open(path + filename)]
@@ -50,6 +51,9 @@ class Brightness(object):
         return self.brights[:]
 
 def calculate_model(vis, brights):
+    '''
+    Takes in visibilities and brightnesses and calculates fmod, then returns it as an array.
+    '''
     visMatrix = vis.get_visMatrix()
     brights = brights.get_brights()
     
@@ -63,10 +67,17 @@ def calculate_model(vis, brights):
     return flux
     
 def make_noise_curve(path, outfile, mag, phase, flux, error=[]):
+    '''
+    Generates a noisy version of the flux and the error, then uses the make_clean_curve to write it to file.
+    '''
     flux, error = wn.generate_noise(flux, error, mag)
     make_clean_curve(path, outfile, phase, flux, error)
     
 def make_clean_curve(path, outfile, phase, flux, error=[]):
+    '''
+    Writes the given phase, flux, and error lists to a file.
+    If no error list is given, it won't get written.
+    '''
     writeTo = open(path + outfile, "w")
     for i in range(len(phase)):
         writeTo.write("%lf %lf %lf\n" % (phase[i], flux[i], error[i]))
@@ -77,11 +88,11 @@ if __name__ == '__main__':
     
     error = [float(temp.split()[2]) for temp in open("../binned.out")]
     
-    visMatrix = Visibility("../Vis_Plots/", 18, 6)
+    visMatrix = Visibility("../Vis_Plots/", 22, 11)
     brights = Brightness(path, "../description.txt")
     
     flux = calculate_model(visMatrix, brights)
     phase = visMatrix.get_phase()
     
-    make_noise_curve(path, "14_noise_model.out", 14, phase, flux, error)
-    #make_clean_curve(path, "model.out", phase, flux, error)
+    #make_noise_curve(path, "12_noise_model.out", 12, phase, flux, error)
+    make_clean_curve(path, "model.out", phase, flux, error)
