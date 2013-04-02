@@ -483,33 +483,44 @@ def make_average_file(path, output, star, regionList):
     '''
     boxAve = 0
     stripeAve = 0
+    darkBoxTotal = 0
+    darkStripeTotal = 0
     darkStripe = 0
     darkBox = 0
-    totalAve = 0
+    
+    e_region = ((sin(PI/2) - sin(-PI/2)) * (star.lat2 - star.lat1 - sin(star.lat2)*cos(star.lat2) + sin(star.lat1)*cos(star.lat1)))/(2 * PI);
     
     outfile = open(path + output + ".txt", "w")
     
     for region in regionList[:star.nBoxes]:
         if abs(1.0 - region.goalVal) < .00000001:
             boxAve += region.get_mean()
-            totalAve += region.get_mean()
             outfile.write("%f\n" % region.get_mean())
         else:
             darkBox += 1
+            darkBoxTotal += region.get_mean()
+            outfile.write("%f\n" % region.get_mean())
+            
     for region in regionList[star.nBoxes:]:
         if abs(1.0 - region.goalVal) < .00000001:
             stripeAve += region.get_mean()
-            totalAve += region.get_mean()
             outfile.write("%f\n" % region.get_mean())
         else:
             darkStripe += 1
-    nBoxAve = boxAve/float(star.nBoxes - darkBox)
-    boxAve = boxAve/float(star.nBoxes)
-    nTotalAve = totalAve/float(star.nsb - darkBox - darkStripe)
-    totalAve = totalAve/float(star.nsb)
-    nStripeAve = stripeAve/float(star.nStripes - darkStripe)
-    stripeAve = stripeAve/float(star.nStripes)
+            darkStripeTotal += region.get_mean()
+            outfile.write("%f\n" % region.get_mean())
     
-    outfile.write("\n------------ Totals ------------\nTotal Average: %f\nBox Average: %f\nStripe Average: %f\n\nNon-Darkened Total Average: %f\nNon-Darkened Box Average: %f\nNon-Darkened Stripe Average: %f\n" % (boxAve, stripeAve, totalAve, nBoxAve, nStripeAve, nTotalAve))
+    
+    
+    nBoxAve = boxAve/float(star.nBoxes - darkBox)
+    boxAve = (boxAve + darkBoxTotal)/float(star.nBoxes)
+    
+    nTotalAve = (boxAve * (e_region) + stripeAve * (1 - e_region))/float(star.nsb - darkBox - darkStripe)
+    totalAve = ((boxAve + darkBoxTotal) * (e_region) + (stripeAve + darkStripeTotal) * (1 - e_region))/float(star.nsb)
+    
+    nStripeAve = stripeAve/float(star.nStripes - darkStripe)
+    stripeAve = (stripeAve + darkStripeTotal)/float(star.nStripes)
+    
+    outfile.write("\n------------ Totals ------------\nTotal Average: %f\nBox Average: %f\nStripe Average: %f\n\nNon-Darkened Total Average: %f\nNon-Darkened Box Average: %f\nNon-Darkened Stripe Average: %f\n" % (totalAve, boxAve, stripeAve, nTotalAve, nBoxAve, nStripeAve))
         
     outfile.close()

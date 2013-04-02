@@ -584,7 +584,7 @@ int main (int argc, const char * argv[]) {
         for(int i = 0; i < s.nsb; i++) {
             s.brights[i] = 1;
         }
-        scale = -0.01;
+        scale = -0.1;
         
         //Create the simplex
         for (int i = 0; i < s.nsb + 1; i++) {
@@ -593,7 +593,6 @@ int main (int argc, const char * argv[]) {
                 if (i == j + 1) {
                     simplex[i][j] += scale;
                 }
-                
             }
         }
         for (int j = 0; j < s.nsb + 1; j++) {
@@ -1088,7 +1087,7 @@ void assign_visibilities(static_inputs s, dynamic_inputs d, double box_vis_find(
         if (s.bin_flux[i][1]) {
             for (int j = 0; j < s.nboxes; j++) {
                 d.box_id = j;
-                s.visibilities[i][j] = box_vis_find(s, d);// - eclipse_path_vis(s, d, box_vis_find);
+                s.visibilities[i][j] = box_vis_find(s, d);
                 s.nboxes *= 10;
                 for (int k = 0; k < 10; k++) {
                     d.box_id = j * 10 + k;
