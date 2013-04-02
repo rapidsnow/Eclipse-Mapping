@@ -197,7 +197,7 @@ void data_clipping(static_inputs s, dynamic_inputs d);
 void amoeba(double **p, double y[], int ndim, double ftol, double (*funk)(static_inputs, dynamic_inputs, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs)), int *nfunk, static_inputs s, dynamic_inputs d, double(*calculate_model_flux)(static_inputs, double*(*calculate_S_vals)(static_inputs), int), double*(*calculate_S_vals)(static_inputs));
 
 int main (int argc, const char * argv[]) {
-	char filename[256], output_path[256], fname[256];
+	char filename[256], fname[256];
 	long firstrow, firstelem, npoints, bjdrefi;
 	int status, hdutype, flux_col, err_col, anynul, nstripes, nboxes, PDC_Flag, funk_count, start_val, end_val, points_per_day;
 	double p_rot, orb_epoch, orb_per, width, nulval, o_cadence, t_cadence, scale, temp_flux, Rp, a, b, lam1, lam2, desired_days_per_set, days_per_tick, ldc1, ldc2;
@@ -220,12 +220,6 @@ int main (int argc, const char * argv[]) {
 	firstrow = firstelem = 1;
 	nulval	 = -999;
     
-    if (argv[2]) {
-        strlcpy(output_path, argv[2], 256);
-    } else {
-        strlcpy(output_path, ".", 256);
-    }
-	
 	in = fopen(argv[1], "r");
 	if (in == NULL) {
 		printf("Error: File %s not opened correctly\n", argv[1]);
@@ -282,7 +276,7 @@ int main (int argc, const char * argv[]) {
     s.e_region = ((sin(PI/2) - sin(-PI/2)) * (s.lat2 - s.lat1 - sin(s.lat2)*cos(s.lat2) + sin(s.lat1)*cos(s.lat1)))/(2 * PI);
     s.cc = (1 - s.e_region)/s.e_region;
     
-    sprintf(fname, "%s/readable_inputs.in", output_path);
+    sprintf(fname, "%s/readable_inputs.in", argv[2]);
     readable_input = fopen(fname, "w");
     if (readable_input == NULL) {
         printf("Error: File %s not opened correctly\n", argv[1]);
@@ -358,7 +352,7 @@ int main (int argc, const char * argv[]) {
     if((y           = malloc((s.nsb + 1) * sizeof(y)))       == NULL) return 5;
     if((s.chi       = malloc(sizeof(s.chi)))                 == NULL) return 5;
     /////////////////////////////////////////////////////////////////////////////////////////////
-    sprintf(fname, "%s/chi.out", output_path);
+    sprintf(fname, "%s/chi.out", argv[2]);
     chi_out = fopen(fname, "w");
     if (chi_out == NULL) {
 		printf("Error: File %s not opened correctly\n", fname);
@@ -418,7 +412,7 @@ int main (int argc, const char * argv[]) {
     
 ////////// Start Binning //////////////////////////////////////////////////////////////////////////
     //Open the binned lightcurve output file
-    sprintf(fname, "%s/binned.out", output_path);
+    sprintf(fname, "%s/binned.out", argv[2]);
     data = fopen(fname, "w");
     if (data == NULL) {
 		printf("Error: File %s not opened correctly\n", fname);
@@ -445,7 +439,7 @@ int main (int argc, const char * argv[]) {
     }
     fclose(data);
     //Print the unbinned lightcurve to an easily plottable format
-    sprintf(fname, "%s/ub.out", output_path);
+    sprintf(fname, "%s/ub.out", argv[2]);
     hey = fopen(fname, "w");
     if (hey == NULL) {
         printf("Error: File %s not opened correctly\n", fname);
@@ -477,7 +471,7 @@ int main (int argc, const char * argv[]) {
 /* ////////// Begin visibilities Outputs /////////////////////////////////////////////////////////////
     FILE *vis_output; //Moved this declaration here so that I can just comment the whole section
     
-    sprintf(fname, "%s/Vis_Plots/sum_bvals.out", output_path);
+    sprintf(fname, "%s/Vis_Plots/sum_bvals.out", argv[2]);
     vis_output = fopen(fname, "w");
     if (vis_output == NULL) {
         printf("Error: File %s not opened correctly\n", fname);
@@ -492,7 +486,7 @@ int main (int argc, const char * argv[]) {
     }
     fclose(vis_output);
     
-    sprintf(fname, "%s/Vis_Plots/sum_zvals.out", output_path);
+    sprintf(fname, "%s/Vis_Plots/sum_zvals.out", argv[2]);
     vis_output = fopen(fname, "w");
     if (vis_output == NULL) {
         printf("Error: File %s not opened correctly\n", fname);
@@ -507,7 +501,7 @@ int main (int argc, const char * argv[]) {
     }
     fclose(vis_output);
     
-    sprintf(fname, "%s/Vis_Plots/sum_all.out", output_path);
+    sprintf(fname, "%s/Vis_Plots/sum_all.out", argv[2]);
     vis_output = fopen(fname, "w");
     if (vis_output == NULL) {
         printf("Error: File %s not opened correctly\n", fname);
@@ -526,7 +520,7 @@ int main (int argc, const char * argv[]) {
     fclose(vis_output);
     
     for (int i = 0; i < s.nboxes; i++) {
-        sprintf(fname, "%s/Vis_Plots/b%d.out", output_path, i);
+        sprintf(fname, "%s/Vis_Plots/b%d.out", argv[2], i);
         vis_output = fopen(fname, "w");
         if (vis_output == NULL) {
             printf("Error: File %s not opened correctly\n", fname);
@@ -538,7 +532,7 @@ int main (int argc, const char * argv[]) {
         fclose(vis_output);
     }
     for (int i = s.nboxes; i < s.nsb; i++) {
-        sprintf(fname, "%s/Vis_Plots/z%d.out", output_path, i - nboxes);
+        sprintf(fname, "%s/Vis_Plots/z%d.out", argv[2], i - nboxes);
         vis_output = fopen(fname, "w");
         if (vis_output == NULL) {
             printf("Error: File %s not opened correctly\n", fname);
@@ -608,9 +602,9 @@ int main (int argc, const char * argv[]) {
         
 ////////// Start Light Curve Outputs //////////////////////////////////////////////////////////////
         if(argc == 4) {
-            sprintf(fname, "%s/model_%03d.out", output_path, d.file_count);
+            sprintf(fname, "%s/model_%03d.out", argv[2], d.file_count);
         } else {
-            sprintf(fname, "%s/model_%d.out", output_path, d.file_count);
+            sprintf(fname, "%s/model_%d.out", argv[2], d.file_count);
         }
         model = fopen(fname, "w");
         if (model == NULL) {
@@ -631,7 +625,7 @@ int main (int argc, const char * argv[]) {
         memcpy(s.brights, temp_brights, s.nsb * sizeof(s.brights));
         free(temp_brights);
         
-        sprintf(fname, "%s/brights_%d.out", output_path, d.file_count);
+        sprintf(fname, "%s/brights_%d.out", argv[2], d.file_count);
         bright = fopen(fname, "w");
         if (bright == NULL) {
             printf("Error: File %s not opened correctly\n", fname);
@@ -644,7 +638,7 @@ int main (int argc, const char * argv[]) {
 ////////// End Light Curve Outputs ////////////////////////////////////////////////////////////////
         
 ////////// Start Transit Range Outputs ////////////////////////////////////////////////////////////
-        sprintf(fname, "%s/trans_%d.out", output_path, d.file_count);
+        sprintf(fname, "%s/trans_%d.out", argv[2], d.file_count);
         trans_out = fopen(fname, "w");
         if (trans_out == NULL) {
             printf("Error: File %s not opened correctly\n", fname);
