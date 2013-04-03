@@ -578,7 +578,7 @@ int main (int argc, const char * argv[]) {
         for(int i = 0; i < s.nsb; i++) {
             s.brights[i] = 1;
         }
-        scale = -0.1;
+        scale = -0.5;
         
         //Create the simplex
         for (int i = 0; i < s.nsb + 1; i++) {

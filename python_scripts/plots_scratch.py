@@ -488,7 +488,7 @@ def make_average_file(path, output, star, regionList):
     darkStripe = 0
     darkBox = 0
     
-    e_region = ((sin(PI/2) - sin(-PI/2)) * (star.lat2 - star.lat1 - sin(star.lat2)*cos(star.lat2) + sin(star.lat1)*cos(star.lat1)))/(2 * PI);
+    e_region = ((math.sin(math.pi/2) - math.sin(-math.pi/2)) * (star.lat2 - star.lat1 - math.sin(star.lat2)*math.cos(star.lat2) + math.sin(star.lat1)*math.cos(star.lat1)))/(2 * math.pi);
     
     outfile = open(path + output + ".txt", "w")
     
