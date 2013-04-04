@@ -440,9 +440,9 @@ def transit_plots(path, outfile, modelLCList, binnedLC, star, regionList, transF
                                                                                                 #after the decimal point, so the first half of the transit
                                                                                                 #comes second.
                 binIntTime = [int(time + 0.5) for time in binnedLC.time[transStart + start:transStop + start]]
-                maxFlux = max(modelLC.flux[transStart:transStop])
-                plt.plot(modelLC.time[transStart:transStop] - modelIntTime, modelLC.flux[transStart:transStop]/maxFlux + scale, c='black', label="Model")
-                plt.scatter(binnedLC.time[transStart + start:transStop + start] - binIntTime, binnedLC.flux[transStart + start:transStop + start]/maxFlux + scale, c='red', marker='+', label="Data")
+                maxFluxDiff = 1.0 - max(modelLC.flux[transStart:transStop])
+                plt.plot(modelLC.time[transStart:transStop] - modelIntTime, modelLC.flux[transStart:transStop] + maxFlux + scale, c='black', label="Model")
+                plt.scatter(binnedLC.time[transStart + start:transStop + start] - binIntTime, binnedLC.flux[transStart + start:transStop + start] + maxFlux + scale, c='red', marker='+', label="Data")
                 
                 scale += .015 #What should this be?
 
