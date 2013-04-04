@@ -435,10 +435,14 @@ def transit_plots(path, outfile, modelLCList, binnedLC, star, regionList, transF
                     plt.close()
                     continue  
                 
-                modelIntTime = [int(time + 0.5) for time in modelLC.time[transStart:transStop]] #The + 0.5 here is because epochs of transits are always at phase 0. int() works by truncating anything after the decimal point, so the first half of the transit comes second.
+                modelIntTime = [int(time + 0.5) for time in modelLC.time[transStart:transStop]] #The + 0.5 here is because epochs of transits are 
+                                                                                                #always at phase 0. int() works by truncating anything
+                                                                                                #after the decimal point, so the first half of the transit
+                                                                                                #comes second.
                 binIntTime = [int(time + 0.5) for time in binnedLC.time[transStart + start:transStop + start]]
-                plt.plot(modelLC.time[transStart:transStop] - modelIntTime, modelLC.flux[transStart:transStop] + scale, c='black', label="Model")
-                plt.scatter(binnedLC.time[transStart + start:transStop + start] - binIntTime, binnedLC.flux[transStart + start:transStop + start] + scale, c='red', marker='+', label="Data")
+                maxFlux = max(modelLC.flux[transStart:transStop])
+                plt.plot(modelLC.time[transStart:transStop] - modelIntTime, modelLC.flux[transStart:transStop]/maxFlux + scale, c='black', label="Model")
+                plt.scatter(binnedLC.time[transStart + start:transStop + start] - binIntTime, binnedLC.flux[transStart + start:transStop + start]/maxFlux + scale, c='red', marker='+', label="Data")
                 
                 scale += .015 #What should this be?
 
@@ -510,16 +514,14 @@ def make_average_file(path, output, star, regionList):
             darkStripeTotal += region.get_mean()
             outfile.write("%f\n" % region.get_mean())
     
-    
-    
     nBoxAve = boxAve/float(star.nBoxes - darkBox)
     boxAve = (boxAve + darkBoxTotal)/float(star.nBoxes)
     
-    nTotalAve = (boxAve * (e_region) + stripeAve * (1 - e_region))/float(star.nsb - darkBox - darkStripe)
-    totalAve = ((boxAve + darkBoxTotal) * (e_region) + (stripeAve + darkStripeTotal) * (1 - e_region))/float(star.nsb)
-    
     nStripeAve = stripeAve/float(star.nStripes - darkStripe)
     stripeAve = (stripeAve + darkStripeTotal)/float(star.nStripes)
+    
+    nTotalAve = nBoxAve * e_region + nStripeAve * (1 - e_region)
+    totalAve = boxAve * e_region + stripeAve * (1 - e_region)
     
     outfile.write("\n------------ Totals ------------\nTotal Average: %f\nBox Average: %f\nStripe Average: %f\n\nNon-Darkened Total Average: %f\nNon-Darkened Box Average: %f\nNon-Darkened Stripe Average: %f\n" % (totalAve, boxAve, stripeAve, nTotalAve, nBoxAve, nStripeAve))
         

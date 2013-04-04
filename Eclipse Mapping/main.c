@@ -9,7 +9,7 @@
 #include "/opt/local/include/nrutil.h"
 #define NR_END 1
 #define FREE_ARG char*
-#define NMAX 500000
+#define NMAX 1000000
 #define NORM_INDEX 100
 #define GET_PSUM \
 for (j=0;j<ndim;j++) {\
@@ -595,6 +595,24 @@ int main (int argc, const char * argv[]) {
         }
 
         amoeba(simplex, y, s.nsb, .00000000001, chi_squared, &funk_count, s, d, calculate_model_flux, calculate_S_vals);
+////////////////////////////////////////////////////////////
+        // Adding an extra amoeba loop
+////////////////////////////////////////////////////////////
+        for (int i = 0; i < s.nsb + 1; i++) {
+            for (int j = 0; j < s.nsb; j++) {
+                simplex[i][j] = simplex[0][j];
+                if (i == j + 1) {
+                    simplex[i][j] += -.2;
+                }
+            }
+        }
+        for (int j = 0; j < s.nsb + 1; j++) {
+            memcpy(s.brights, simplex[j], s.nsb * sizeof(s.brights));
+            y[j] = chi_squared(s, d, calculate_model_flux, calculate_S_vals);
+        }
+        funk_count = 0;
+        amoeba(simplex, y, s.nsb, .00000000001, chi_squared, &funk_count, s, d, calculate_model_flux, calculate_S_vals);
+        
         printf("Done with Amoeba: %d\n", nn);
         
 ////////// End Amoeba /////////////////////////////////////////////////////////////////////////////
