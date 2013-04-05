@@ -82,12 +82,8 @@ class Light_Curve(object):
     def flux_min(self):
         return min(self.flux)
     
-#class Data_Container(object):
-#    def __init__ (self, total_binned_file):#, model_file, data_file, trans_file, bright_file
-#        self.total_binned_file = Light_Curve(total_binned_file)
-#        self.models = []
-#        self.dataCurves = []
-        
+#################################################################################################################
+    
 def make_brightness_structures(goalFile, fileList):
     '''
     Allocates a set of brightness values for each region and returns a list of Region objects
@@ -101,6 +97,8 @@ def make_brightness_structures(goalFile, fileList):
         for j in range(len(regionList)):
             regionList[j].add_bright_value(valList[j], i)
     return regionList
+
+#################################################################################################################
 
 def regions_over_time(path, outfile, star, regionList):
     '''
@@ -182,7 +180,9 @@ def regions_over_time(path, outfile, star, regionList):
         plt.savefig(path + "/box_%d.png" % ii, dpi=120)
         plt.close()
         
-def rms_vs_region(path, outfile, star, regionList):
+#################################################################################################################
+
+def rms_vs_region(ax, path, outfile, star, regionList):
     regionNum = 0
     
     regionTracker = []
@@ -199,23 +199,25 @@ def rms_vs_region(path, outfile, star, regionList):
             abberantTracker.append(region.rms())
             regionAbbTracker.append(regionNum)
                 
-    plt.scatter(regionTracker, rmsTracker, marker='o', color='b')    
-    plt.scatter(regionAbbTracker, abberantTracker, marker='D', color='R')
-    plt.plot([star.nBoxes + .5, star.nBoxes + .5], [0, 1.1 * max(rmsTracker + abberantTracker)], color='black')
+    ax.scatter(regionTracker, rmsTracker, marker='o', color='b')    
+    ax.scatter(regionAbbTracker, abberantTracker, marker='D', color='R')
+    ax.plot([star.nBoxes + .5, star.nBoxes + .5], [0, 1.1 * max(rmsTracker + abberantTracker)], color='black')
     
-    plt.xlim(xmin = -1)
-    plt.xlim(xmax = star.nsb + 1)
-    plt.ylim(ymin = 0)
-    plt.ylim(ymax = 1.1 * max(rmsTracker + abberantTracker))
+    ax.set_xlim(xmin = -1)
+    ax.set_xlim(xmax = star.nsb + 1)
+    ax.set_ylim(ymin = 0)
+    ax.set_ylim(ymax = 1.1 * max(rmsTracker + abberantTracker))
     
-    plt.xlabel("Region Number")
-    plt.ylabel("RMS")
-    plt.title(path)
+    ax.set_xlabel("Region Number")
+    ax.set_ylabel("RMS")
+    ax.set_title(path)
         
-    plt.savefig(path + outfile + ".png", dpi=120)
-    plt.close()
-    
-def rms_over_time(path, outfile, star, regionMatrix):
+#    plt.savefig(path + outfile + ".png", dpi=120)
+#    plt.close()
+
+#################################################################################################################
+
+def rms_over_time(ax, path, outfile, star, regionMatrix):
     simCount = 0
     simTracker = []
     rmsTracker = []
@@ -226,15 +228,17 @@ def rms_over_time(path, outfile, star, regionMatrix):
             rmsTracker.append(region.rms())
             simTracker.append(simCount)
             
-    plt.scatter(simTracker, rmsTracker, marker='o', color='b')
-    plt.xlabel('Simulation ID')
-    plt.ylabel('RMS')
-    plt.title('RMS vs Simulation ID')
+    ax.scatter(simTracker, rmsTracker, marker='o', color='b')
+    ax.set_xlabel('Simulation ID')
+    ax.set_ylabel('RMS')
+    ax.set_title('RMS vs Simulation ID')
     
-    plt.savefig(path + outfile + ".png", dpi=120)
-    plt.close()
-    
-def twoD_brights_over_time(path, outfile, star, regionList, stripes=False):
+#    plt.savefig(path + outfile + ".png", dpi=120)
+#    plt.close()
+
+#################################################################################################################
+
+def twoD_brights_over_time(ax, path, outfile, star, regionList, stripes=False):
     '''
     Creates the box and stripe plots
     path: path to output
@@ -281,19 +285,19 @@ def twoD_brights_over_time(path, outfile, star, regionList, stripes=False):
         idy2 += DIMENSION_SCALE
 
 
-    plt.imshow(img, cmap=cm, vmin=0.88, vmax=1.05)
-    plt.clim(0.88,1.05)
-    plt.colorbar(shrink=0.55)
-    plt.xlabel('Window Number')
-    plt.xticks(np.arange(0, len(regionList[0].get_brights()), 5) * 50, range(0,len(regionList[0].get_brights()), 5))
-    plt.yticks(np.arange(0, nRegions * 50, 100), np.arange(0, 360, (360/nRegions) * 2))
-    plt.ylabel('Longitude')
-    plt.title('Brightness values over time: ' + path)
+    tempImg = ax.imshow(img, cmap=cm, vmin=0.88, vmax=1.05)
+    plt.colorbar(tempImg, shrink=0.55, ax=ax)
+    ax.set_xlabel('Window Number')
+    ax.set_xticks(np.arange(0, len(regionList[0].get_brights()), 5) * 50, range(0,len(regionList[0].get_brights()), 5))
+    ax.set_yticks(np.arange(0, nRegions * 50, 100), np.arange(0, 360, (360/nRegions) * 2))
+    ax.set_ylabel('Longitude')
+    ax.set_title('Brightness values over time: ' + path)
     
-    plt.savefig(path + outfile + ".png", dpi=180)
-    plt.close()
+#    plt.savefig(path + outfile + ".png", dpi=180)
+#    plt.close()
     
-    
+#################################################################################################################
+
 def make_bright_image(star, regionList, currentWindow):
     '''
     Utility that makes the matrix for the brightness map. Shouldn't really be called on its own
@@ -336,18 +340,14 @@ def make_bright_image(star, regionList, currentWindow):
         img[idy1:idy2, idx1:idx2] = bright_box[jj]
     return img
     
-def plot_lc_and_brights(path, outfile, modelLCList, binnedLC, star, regionList, transFileBaseName):
+#################################################################################################################
+
+def plot_lc(ax, path, outfile, modelLCList, binnedLC, star, regionList, transFileBaseName):
     '''
     Components of this routine:
-        Projected brightness map
-
         Overall binned data in one color
         Windowed binned data in another color
         Model lightcurve in another color
-
-        Transit inset:
-            Model portion
-            Binned portion        
     '''
     currentWindow = 0
     binMax = max(binnedLC.flux)
@@ -367,41 +367,60 @@ def plot_lc_and_brights(path, outfile, modelLCList, binnedLC, star, regionList, 
         ###############################
         # Make the overall lightcurve #
         ###############################
-        plt.plot(modelLC.time, modelLC.flux, c='black', label="Model")
+        ax.plot(modelLC.time, modelLC.flux, c='black', label="Model")
         
         #Order matters here. MPL arranges things such that the most recent is on the top
-        plt.scatter(binnedLC.time, binnedLC.flux, c='green', marker = '+', label="Data")
-        plt.scatter(binnedLC.time[start:stop], binnedLC.flux[start:stop], c='red', marker='+', label="Brightness Map Region")
+        ax.scatter(binnedLC.time, binnedLC.flux, c='green', marker = '+', label="Data")
+        ax.scatter(binnedLC.time[start:stop], binnedLC.flux[start:stop], c='red', marker='+', label="Brightness Map Region")
         
-        plt.ylim(ymax=binMax + (binDiff * .85))
-        plt.ylim(ymin=binMin - (binDiff * .1))
+        ax.set_ylim(ymax=binMax + (binDiff * .85))
+        ax.set_ylim(ymin=binMin - (binDiff * .1))
         
-        plt.xlabel("Orbital Phase")
-        plt.ylabel("Relative Flux")
-        plt.title("Model Light Curve Vs. Data - Window %d" % currentWindow)
-        plt.savefig(path + "model_fit_w%d.png" % currentWindow) 
-        plt.close()
+        ax.set_xlabel("Orbital Phase")
+        ax.set_ylabel("Relative Flux")
+        ax.set_title("Model Light Curve Vs. Data - Window %d" % currentWindow)
+#        plt.savefig(path + "model_fit_w%d.png" % currentWindow) 
+#        plt.close()
             
+        #Increment the window count for the brightness map maker
+        currentWindow += 1
+        
+################################################################################################################# 
+
+def plot_brights(ax, path, outfile, modelLCList, binnedLC, star, regionList, transFileBaseName):
+    '''
+    Components of this routine:
+        Projected brightness map
+    '''
+    currentWindow = 0
+    binMax = max(binnedLC.flux)
+    binMin = min(binnedLC.flux)
+    
+    binDiff = binMax - binMin
+
+    for modelLC in modelLCList:
         ###########################
         # Make the brightness map #
         ###########################
         img = make_bright_image(star, regionList, currentWindow)
         
         plt.imsave(path + "/temp.png", img, cmap='hot', vmin=0.85, vmax=1.15)
-        plt.imshow(img, cmap='hot')    
-        plt.clim(0.85,1.15)
-        plt.colorbar(shrink=0.5)    
-    
+        tempImg = ax.imshow(img, cmap='hot')
+        plt.colorbar(tempImg, shrink=0.5, ax=ax)
+        plt.show(tempImg)
         #Create the plot
-        bmap = Basemap(projection='moll', lon_0 = 0)
+        bmap = Basemap(projection='moll', lon_0 = 0, ax=ax)
         bmap.warpimage(path + "/temp.png")
-        plt.savefig(path + "brightness_map_w%d.png" % currentWindow)
-        plt.close()
+#        plt.savefig(path + "brightness_map_w%d.png" % currentWindow)
+#        plt.close()
         
         #Increment the window count for the brightness map maker
         currentWindow += 1
-    
-def transit_plots(path, outfile, modelLCList, binnedLC, star, regionList, transFileBaseName):
+        break
+
+#################################################################################################################
+
+def transit_plots(ax, path, outfile, modelLCList, binnedLC, star, regionList, transFileBaseName):
         currentWindow = 0
         for modelLC in modelLCList:
             #Determine the current window start and stop indices
@@ -421,10 +440,10 @@ def transit_plots(path, outfile, modelLCList, binnedLC, star, regionList, transF
                 information = []
             transitCount = 0
             
-            plt.xlabel("Orbital Phase")
-            plt.ylabel("Relative Flux")
-            plt.title("Transits - Window %d" % currentWindow)
-            #plt.xlim(xmin=start, xmax=stop)
+            ax.set_xlabel("Orbital Phase")
+            ax.set_ylabel("Relative Flux")
+            ax.set_title("Transits - Window %d" % currentWindow)
+            #ax.set_xlim(xmin=start, xmax=stop)
             
             scale = 0
             for row in information:
@@ -432,7 +451,7 @@ def transit_plots(path, outfile, modelLCList, binnedLC, star, regionList, transF
                 transStop = int(row[1]) - start
                 
                 if transStop < transStart:
-                    plt.close()
+#                    plt.close()
                     continue  
                 
                 modelIntTime = [int(time + 0.5) for time in modelLC.time[transStart:transStop]] #The + 0.5 here is because epochs of transits are 
@@ -441,21 +460,23 @@ def transit_plots(path, outfile, modelLCList, binnedLC, star, regionList, transF
                                                                                                 #comes second.
                 binIntTime = [int(time + 0.5) for time in binnedLC.time[transStart + start:transStop + start]]
                 maxFluxDiff = 1.0 - max(modelLC.flux[transStart:transStop])
-                plt.plot(modelLC.time[transStart:transStop] - modelIntTime, modelLC.flux[transStart:transStop] + maxFlux + scale, c='black', label="Model")
-                plt.scatter(binnedLC.time[transStart + start:transStop + start] - binIntTime, binnedLC.flux[transStart + start:transStop + start] + maxFlux + scale, c='red', marker='+', label="Data")
+                ax.plot(modelLC.time[transStart:transStop] - modelIntTime, modelLC.flux[transStart:transStop] + maxFluxDiff + scale, c='black', label="Model")
+                ax.scatter(binnedLC.time[transStart + start:transStop + start] - binIntTime, binnedLC.flux[transStart + start:transStop + start] + maxFluxDiff + scale, c='red', marker='+', label="Data")
                 
                 scale += .015 #What should this be?
 
             #################
             # Save the Plot #
             #################
-            fig = plt.gcf()
-            fig.set_size_inches(8.5,11)
-            plt.savefig(path + outfile + "_w%02d" % currentWindow + ".png", dpi=150)
-            plt.close()
+#            fig = plt.gcf()
+#            fig.set_size_inches(8.5,11)
+#            plt.savefig(path + outfile + "_w%02d" % currentWindow + ".png", dpi=150)
+#            plt.close()
             
             currentWindow += 1
-    
+
+#################################################################################################################
+
 def noise_comp(input_vector):
     '''
     Stupid little method that I wrote to plot out the different levels of noise for a paper. 
@@ -481,6 +502,8 @@ def noise_comp(input_vector):
     
     plt.savefig("noise_levels.png", dpi=180)
     
+#################################################################################################################
+
 def make_average_file(path, output, star, regionList):
     '''
     Some quantifiable measure of the average of a region over time, not actually a plot
