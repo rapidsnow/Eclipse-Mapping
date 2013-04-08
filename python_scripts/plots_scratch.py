@@ -208,9 +208,9 @@ def rms_vs_region(ax, path, outfile, star, regionList):
     ax.set_ylim(ymin = 0)
     ax.set_ylim(ymax = 1.1 * max(rmsTracker + abberantTracker))
     
-    ax.set_xlabel("Region Number")
+    ax.set_xlabel("Region")
     ax.set_ylabel("RMS")
-    ax.set_title(path)
+    ax.set_title("RMS")
         
 #    plt.savefig(path + outfile + ".png", dpi=120)
 #    plt.close()
@@ -231,7 +231,7 @@ def rms_over_time(ax, path, outfile, star, regionMatrix):
     ax.scatter(simTracker, rmsTracker, marker='o', color='b')
     ax.set_xlabel('Simulation ID')
     ax.set_ylabel('RMS')
-    ax.set_title('RMS vs Simulation ID')
+    #ax.set_title('RMS vs Simulation ID')
     
 #    plt.savefig(path + outfile + ".png", dpi=120)
 #    plt.close()
@@ -259,7 +259,7 @@ def twoD_brights_over_time(ax, path, outfile, star, regionList, stripes=False):
         stopIndex = star.nBoxes
         cm = 'hot'
         #cm = 'RdGy'
-    nRegions = startIndex - stopIndex
+    nRegions = stopIndex - startIndex
     
     #Set up arrays for brightnesses and positions
     nx = (len(regionList[0].get_brights()) + 1) * DIMENSION_SCALE + 4 #Number of files * 50 + 1 goal column + 4 pixels to separate
@@ -286,24 +286,39 @@ def twoD_brights_over_time(ax, path, outfile, star, regionList, stripes=False):
 
 
     tempImg = ax.imshow(img, cmap=cm, vmin=0.88, vmax=1.05)
-    plt.colorbar(tempImg, shrink=0.55, ax=ax)
+    if stripes:
+        plt.colorbar(tempImg, shrink=0.75, ax=ax)
+
     ax.set_xlabel('Window Number')
-    ax.set_xticks(np.arange(0, len(regionList[0].get_brights()), 5) * 50, range(0,len(regionList[0].get_brights()), 5))
-    ax.set_yticks(np.arange(0, nRegions * 50, 100), np.arange(0, 360, (360/nRegions) * 2))
-    ax.set_ylabel('Longitude')
-    ax.set_title('Brightness values over time: ' + path)
+    ax.set_xticks(np.arange(0, len(regionList[0].get_brights()), 5) * 50)
+    ax.set_xticklabels(range(0,len(regionList[0].get_brights()), 5))
+    
+    ax.set_yticks(np.arange(0, nRegions * 50, 100))
+    ax.set_yticklabels(np.arange(startIndex, stopIndex, 2))
+    ax.set_ylabel('Region')
+    
+    #ax.set_title('Brightness values over time: ' + path)
+    ax.set_title('Brightness values')
     
 #    plt.savefig(path + outfile + ".png", dpi=180)
 #    plt.close()
     
 #################################################################################################################
 
-def make_bright_image(star, regionList, currentWindow):
+def make_bright_image(star, regionList, currentWindow, goal=False):
     '''
     Utility that makes the matrix for the brightness map. Shouldn't really be called on its own
-    '''
-    brights = np.array([region.get_bright_at_time(currentWindow) for region in regionList])
     
+    For real data: change the brights array to the commented list comprehension
+    rather than the if/else statements
+    '''
+    #brights = np.array([region.get_bright_at_time(currentWindow) for region in regionList])
+    
+    if goal:
+        brights = np.array([region.goalVal for region in regionList])
+    else:
+        brights = np.array([region.get_mean() for region in regionList])
+        
     #Set up arrays for brightnesses and positions
     nx = star.nBoxes * 50
     ny = star.nBoxes * 50
@@ -319,8 +334,8 @@ def make_bright_image(star, regionList, currentWindow):
     idx1_box = np.arange(0, star.nBoxes, 1.)/star.nBoxes * nx
     idx2_box = (np.arange(0, star.nBoxes, 1.) + 1)/star.nBoxes * nx - 1
     
-    idy1_lat = int(star.lat1 * ny/2 + ny/2 + 0.5)
-    idy2_lat = int(star.lat2 * ny/2 + ny/2 + 0.5) - 1
+    idy1_lat = int((star.lat1/math.pi) * ny/2 + ny/2 + 0.5)
+    idy2_lat = int((star.lat2/math.pi) * ny/2 + ny/2 + 0.5) - 1
 
     #Populate the pixel values
     for jj in range(star.nStripes):
@@ -367,18 +382,20 @@ def plot_lc(ax, path, outfile, modelLCList, binnedLC, star, regionList, transFil
         ###############################
         # Make the overall lightcurve #
         ###############################
-        ax.plot(modelLC.time, modelLC.flux, c='black', label="Model")
         
         #Order matters here. MPL arranges things such that the most recent is on the top
-        ax.scatter(binnedLC.time, binnedLC.flux, c='green', marker = '+', label="Data")
-        ax.scatter(binnedLC.time[start:stop], binnedLC.flux[start:stop], c='red', marker='+', label="Brightness Map Region")
+        #ax.scatter(binnedLC.time, binnedLC.flux, c='green', marker = '+', label="Data")
+        ax.scatter(binnedLC.time[start:stop], binnedLC.flux[start:stop], c='red', marker='o', s=5, lw=0, label="Brightness Map Region")
+        ax.plot(modelLC.time, modelLC.flux, c='black', label="Model")
         
-        ax.set_ylim(ymax=binMax + (binDiff * .85))
-        ax.set_ylim(ymin=binMin - (binDiff * .1))
+        ax.set_ylim(ymax=binMax + .05 * binDiff)
+        ax.set_ylim(ymin=binMin - .02 * binDiff)
+        ax.set_xlim(xmax=binnedLC.time[start])
+        ax.set_xlim(xmax=binnedLC.time[stop] + (binnedLC.time[1] - binnedLC.time[0]) * 10)
         
         ax.set_xlabel("Orbital Phase")
         ax.set_ylabel("Relative Flux")
-        ax.set_title("Model Light Curve Vs. Data - Window %d" % currentWindow)
+        ax.set_title("Light Curve Fit")
 #        plt.savefig(path + "model_fit_w%d.png" % currentWindow) 
 #        plt.close()
             
@@ -387,36 +404,31 @@ def plot_lc(ax, path, outfile, modelLCList, binnedLC, star, regionList, transFil
         
 ################################################################################################################# 
 
-def plot_brights(ax, path, outfile, modelLCList, binnedLC, star, regionList, transFileBaseName):
+def plot_brights(ax, path, star, regionList, goal=False):
     '''
     Components of this routine:
         Projected brightness map
+        
+    Please note that this has been modified for use in diagnostic plots, 
+    there should really be a way to specify a windowNumber for real data
     '''
     currentWindow = 0
-    binMax = max(binnedLC.flux)
-    binMin = min(binnedLC.flux)
-    
-    binDiff = binMax - binMin
 
-    for modelLC in modelLCList:
-        ###########################
-        # Make the brightness map #
-        ###########################
-        img = make_bright_image(star, regionList, currentWindow)
-        
-        plt.imsave(path + "/temp.png", img, cmap='hot', vmin=0.85, vmax=1.15)
-        tempImg = ax.imshow(img, cmap='hot')
-        plt.colorbar(tempImg, shrink=0.5, ax=ax)
-        plt.show(tempImg)
-        #Create the plot
-        bmap = Basemap(projection='moll', lon_0 = 0, ax=ax)
-        bmap.warpimage(path + "/temp.png")
-#        plt.savefig(path + "brightness_map_w%d.png" % currentWindow)
-#        plt.close()
-        
-        #Increment the window count for the brightness map maker
-        currentWindow += 1
-        break
+    ###########################
+    # Make the brightness map #
+    ###########################
+    img = make_bright_image(star, regionList, currentWindow, goal=goal)
+    
+    plt.imsave(path + "/temp.png", img, cmap='hot', vmin=0.85, vmax=1.15)
+    plt.imshow(img, cmap='hot')
+    #Create the plot
+    bmap = Basemap(projection='moll', lon_0 = 0, ax=ax)
+    bmap.warpimage(path + "/temp.png", ax=ax)
+    
+    if goal:
+        ax.set_title("Desired Map")
+    else:
+        ax.set_title("Average Map")
 
 #################################################################################################################
 
