@@ -16,7 +16,6 @@ fullPathList = ["1b/noise/", "1b_1s/noise/", "2b/noise/", "2b_1s/noise/", "2b_2s
 pathList = ["./"]
 
 
-
 for path in pathList:
     fig = plt.figure(figsize=(10,12), dpi=500)
 #    axBoxPlot = fig.add_subplot(2,2,1)

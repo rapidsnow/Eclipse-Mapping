@@ -453,7 +453,7 @@ def plot_brights(ax, path, star, regionList, goal=False):
     '''
     Components of this routine:
         Projected brightness map
-        
+         
     Please note that this has been modified for use in diagnostic plots, 
     there should really be a way to specify a windowNumber for real data
     '''
