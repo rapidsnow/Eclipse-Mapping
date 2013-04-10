@@ -82,6 +82,51 @@ class Light_Curve(object):
     def flux_min(self):
         return min(self.flux)
     
+class Transit_Container(object):
+    def __init__(self, start, stop):
+        self.timeList = []
+        self.fluxList = []
+        self.errorList = []
+        self.startOffsetList = []
+        self.start = start
+        self.stop = stop
+    def add_transit(self, lightCurve, indexDiff):
+        transStart = max([self.start - indexDiff, 0])
+        transStop = min([self.stop - indexDiff, len(lightCurve.get_flux()) - 1])
+    
+        self.timeList.append(lightCurve.get_time()[transStart:transStop])
+        self.fluxList.append(lightCurve.get_flux()[transStart:transStop])
+        self.errorList.append(lightCurve.get_error()[transStart:transStop])
+        self.startOffsetList.append(transStart - self.start + indexDiff) #I think this should give the initial offset
+    def get_mean_time(self):
+        '''
+        Returns the longest list of times
+        (so that you don't get a partial transit as the representative timeList)
+        '''
+        lenList = [len(time) for time in self.timeList]
+        index = lenList.index(max(lenList))
+        return self.timeList[index]
+    def get_mean_flux(self):
+        return self.get_mean(self.fluxList)
+    def get_mean_error(self):
+        return self.get_mean(self.errorList)
+    def get_mean(self, twoDArray):
+        '''
+        Returns a mean array that averages every value in the 2d array
+        The 2d array does not need to have the same number of elements in every list
+        '''
+        meanList = []
+        for j in range(len(twoDArray[0])):
+            total = 0
+            count = 0
+            for i in range(len(twoDArray)):
+                try:
+                    total += twoDArray[i][j + self.startOffsetList[i]]
+                    count += 1
+                except(IndexError):
+                    pass
+            meanList.append(total/float(count))
+        return meanList
 #################################################################################################################
     
 def make_brightness_structures(goalFile, fileList):
@@ -419,11 +464,11 @@ def plot_brights(ax, path, star, regionList, goal=False):
     ###########################
     img = make_bright_image(star, regionList, currentWindow, goal=goal)
     
-    plt.imsave(path + "/temp.png", img, cmap='hot', vmin=0.85, vmax=1.15)
+    plt.imsave(path + "temp.jpg", img, cmap='hot', vmin=0.85, vmax=1.15)
     plt.imshow(img, cmap='hot')
     #Create the plot
     bmap = Basemap(projection='moll', lon_0 = 0, ax=ax)
-    bmap.warpimage(path + "/temp.png", ax=ax)
+    bmap.warpimage(path + "temp.jpg", ax=ax)
     
     if goal:
         ax.set_title("Desired Map")
@@ -431,61 +476,68 @@ def plot_brights(ax, path, star, regionList, goal=False):
         ax.set_title("Average Map")
 
 #################################################################################################################
+def transit_plots(axList, path, modelLCList, binnedLC, transFileBaseName):
+    '''
+    Return a list of axes objects containing transit plots for each window
+    TODO: Add a way to keep track of axes.
+        Either pass in a list of axes or create one in here.
+        Maybe an automatic gridspec type of thing?
+    '''
+    transInfo = path + transFileBaseName + ".out"
+    try:
+        information = csv.reader(open(transInfo))
+    except:
+        information = []
+        print "Warning, no transit information provided\nFile %s not opened or contains no information.\n" % transInfo
 
-def transit_plots(ax, path, outfile, modelLCList, binnedLC, star, regionList, transFileBaseName):
-        currentWindow = 0
+    currentAx = 0
+    transits = []
+    for row in information:
+        transits.append(Transit_Container(int(row[0]), int(row[1])))
         for modelLC in modelLCList:
             #Determine the current window start and stop indices
-            start = 0
-            while binnedLC.time[start] < modelLC.time[0]:
-                start += 1
-            stop = start
-            while binnedLC.time[stop] < modelLC.time[-1]:
-                stop += 1   
-                
-            #TODO: Change this to actually be nice and pretty rather than dirty and hackish
-            #   However, in the meantime... read in the transit files the old way(ew)
-            trans_info = path + transFileBaseName + "_%d.out" % currentWindow
-            try:
-                information = csv.reader(open(trans_info))
-            except:
-                information = []
-            transitCount = 0
+            start, stop = get_start_and_stop(binnedLC, modelLC)
+            if transit_in_window(start, stop, row):
+                #Add this window's transit to the appropriate container
+                transits[-1].add_transit(modelLC, start)
+            else:
+                continue
+            '''
+            Just a note here on what is done so that I don't get lost.
+            I now have made a list of Transit_Containers that is nTransits long (length of the transit file)
+            Each element of that list should contain time (redundant), flux, and error values for each window
+            You can recover them individually by hacking into the list, or you can average them
+            Now we should be able to plot
+            '''
+        #Now we are out of the modelLC loop, but still in the row loop. Every appropriate transit should be in transits[-1] right now
+        #axList[currentAx].plot(transits[-1].get_mean_time(), transits[-1].get_mean_flux(), c='black', lw=1.5, label="Average")
+        for i in range(len(transits[-1].fluxList)):
+            axList[currentAx].plot(transits[-1].timeList[i], transits[-1].fluxList[i], c='gray', lw=.75)
             
-            ax.set_xlabel("Orbital Phase")
-            ax.set_ylabel("Relative Flux")
-            ax.set_title("Transits - Window %d" % currentWindow)
-            #ax.set_xlim(xmin=start, xmax=stop)
-            
-            scale = 0
-            for row in information:
-                transStart = int(row[0]) - start
-                transStop = int(row[1]) - start
-                
-                if transStop < transStart:
-#                    plt.close()
-                    continue  
-                
-                modelIntTime = [int(time + 0.5) for time in modelLC.time[transStart:transStop]] #The + 0.5 here is because epochs of transits are 
-                                                                                                #always at phase 0. int() works by truncating anything
-                                                                                                #after the decimal point, so the first half of the transit
-                                                                                                #comes second.
-                binIntTime = [int(time + 0.5) for time in binnedLC.time[transStart + start:transStop + start]]
-                maxFluxDiff = 1.0 - max(modelLC.flux[transStart:transStop])
-                ax.plot(modelLC.time[transStart:transStop] - modelIntTime, modelLC.flux[transStart:transStop] + maxFluxDiff + scale, c='black', label="Model")
-                ax.scatter(binnedLC.time[transStart + start:transStop + start] - binIntTime, binnedLC.flux[transStart + start:transStop + start] + maxFluxDiff + scale, c='red', marker='+', label="Data")
-                
-                scale += .015 #What should this be?
+        axList[currentAx].scatter(binnedLC.time[int(row[0]):int(row[1])], binnedLC.flux[int(row[0]):int(row[1])], c='red', marker='+', label='Data')
 
-            #################
-            # Save the Plot #
-            #################
-#            fig = plt.gcf()
-#            fig.set_size_inches(8.5,11)
-#            plt.savefig(path + outfile + "_w%02d" % currentWindow + ".png", dpi=150)
-#            plt.close()
-            
-            currentWindow += 1
+        currentAx += 1
+
+def transit_in_window(start, stop, (trans_start, trans_stop)):
+    '''
+    Helper Function for transit plots
+    Returns True if the given transit limits are in between start and stop
+    Returns False otherwise
+    '''
+    return (int(trans_start) <= stop) and (int(trans_stop) >= start)
+
+def get_start_and_stop(binnedLC, modelLC):
+    '''
+    Helper Function for transit plots
+    Returns the start and stop indices for the binned LC of a given model LC
+    '''
+    start = 0
+    while binnedLC.time[start] < modelLC.time[0]:
+        start += 1
+    stop = start
+    while binnedLC.time[stop] < modelLC.time[-1]:
+        stop += 1  
+    return start, stop
 
 #################################################################################################################
 

@@ -15,8 +15,10 @@ fullPathList = ["1b/noise/", "1b_1s/noise/", "2b/noise/", "2b_1s/noise/", "2b_2s
 
 pathList = ["./"]
 
+
+
 for path in pathList:
-    fig = plt.figure(figsize=(10,12), dpi=200)
+    fig = plt.figure(figsize=(10,12), dpi=500)
 #    axBoxPlot = fig.add_subplot(2,2,1)
 #    axStripePlot = fig.add_subplot(2,2,2)
 #    axLC = fig.add_subplot(2,2,3)
@@ -51,15 +53,28 @@ for path in pathList:
     twoD_brights_over_time(axStripePlot, path, 'stripe_plot', star, regionList, stripes=True)
     
     rms_vs_region(axRMS, path, "rms_over_time", star, regionList)
-    make_average_file(path, "average", star, regionList)
-    
-#    transit_plots(path, "stacked_transits", modelLCList, binnedLC, star, regionList, "trans")
     
 #    axTitle.set_title("Diagnostic Plots: %s" % path)
 #    axTitle.get_xaxis().set_visible(False)
 #    axTitle.get_yaxis().set_visible(False)
-#    axTitle.patch.set_alpha(1)
-    plt.savefig("page_plot.png")
+#    for sp in axTitle.spines.values():
+#        sp.set_visible(False)
+    plt.savefig("page_plot.eps", format='eps')
     plt.close()
+
+    axList = [0]*20
+    fig2 = plt.figure(figsize=(8.5, 11), dpi=500,)
+    gs2 = gridspec.GridSpec(5,4,wspace=0,hspace=0)
+    for i in range(5):
+        for j in range(4):
+            axList[j + i * 4] = fig2.add_subplot(gs2[i, j])
+
+    transit_plots(axList, path, modelLCList, binnedLC, "trans")
+    for ax in axList:
+        ax.set_xticks([])
+        ax.set_yticks([])
+    plt.savefig("transit_page.eps", format='eps')
+    
+    make_average_file(path, "average", star, regionList)
     
     print path + " Done!"

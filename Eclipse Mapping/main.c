@@ -545,6 +545,25 @@ int main (int argc, const char * argv[]) {
     }
 ////////// End visibilities Outputs /////////////////////////////////////////////////////////////// */
     
+////////// Start Transit Range Outputs ////////////////////////////////////////////////////////////
+    sprintf(fname, "%s/trans.out", argv[2]);
+    trans_out = fopen(fname, "w");
+    if (trans_out == NULL) {
+        printf("Error: File %s not opened correctly\n", fname);
+        return 1;
+    }
+    for (int ii = 0; ii < *d.count; ii++) {
+        if (s.bin_flux[ii][1] && !s.bin_flux[ii-1][1]) {
+            start_val = ii;
+        }
+        if (s.bin_flux[ii][1] && !s.bin_flux[ii+1][1]){
+            end_val = ii;
+            fprintf(trans_out, "%d,%d\n", start_val + 1, end_val + 1);
+        }
+    }
+    fclose(trans_out);
+////////// End Transit Range Outputs ///////////////////////////////////////////////////////////////
+    
     //Set up array boundaries
     *d.firstelem = 0;
     *d.EOW = s.bin_phase[0] + s.desired_days_per_set;
@@ -654,25 +673,6 @@ int main (int argc, const char * argv[]) {
         }
         fclose(bright);
 ////////// End Light Curve Outputs ////////////////////////////////////////////////////////////////
-        
-////////// Start Transit Range Outputs ////////////////////////////////////////////////////////////
-        sprintf(fname, "%s/trans_%d.out", argv[2], d.file_count);
-        trans_out = fopen(fname, "w");
-        if (trans_out == NULL) {
-            printf("Error: File %s not opened correctly\n", fname);
-            return 1;
-        }
-        for (int ii = 1 + *d.firstelem; ii < *d.nelements + *d.firstelem - 1; ii++) {
-            if (s.bin_flux[ii][1] && !s.bin_flux[ii-1][1]) {
-                start_val = ii;
-            }
-            if (s.bin_flux[ii][1] && !s.bin_flux[ii+1][1]){
-                end_val = ii;
-                fprintf(trans_out, "%d,%d\n", start_val + 1, end_val + 1);
-            }
-        }
-        fclose(trans_out);
-////////// End Transit Range Outputs ///////////////////////////////////////////////////////////////
         
         d.file_count++;
         funk_count = 0;
